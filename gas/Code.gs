@@ -496,8 +496,12 @@ function doGet(e) {
 function doPost(e) {
   try {
     const params = (e && e.parameter) || {};
-    const action = params.action;
-    const body = e && e.postData && e.postData.contents ? JSON.parse(e.postData.contents) : {};
+    let body = {};
+    if (e && e.postData && e.postData.contents) {
+      try { body = JSON.parse(e.postData.contents); } catch (parseErr) { body = {}; }
+    }
+    // 支持两种方式: URL query string (?action=xxx) 或 body JSON ({action: 'xxx', ...})
+    const action = params.action || body.action;
     let result;
 
     switch (action) {
