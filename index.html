@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{{ t('title') }} · {{ t('subtitle') }}</title>
+<title>Monthly Expenses</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%23007AFF'/><text x='50%' y='50%' dominant-baseline='central' text-anchor='middle' font-size='36'>📊</text></svg>">
 <script src="https://unpkg.com/vue@3.4.21/dist/vue.global.prod.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
@@ -1220,8 +1220,8 @@ body {
               {{ getCategory(tx.categoryId).icon || '📦' }}
             </div>
             <div class="tx-main">
-              <div class="tx-desc">{{ tx.description || getCategory(tx.categoryId).name }}</div>
-              <div class="tx-cat-name">{{ getCategory(tx.categoryId).name }} · {{ getCategory(tx.categoryId).type === 'income' ? t('income') : t('expense') }}</div>
+              <div class="tx-desc">{{ tx.description || catName(getCategory(tx.categoryId)) }}</div>
+              <div class="tx-cat-name">{{ catName(getCategory(tx.categoryId)) }} · {{ getCategory(tx.categoryId).type === 'income' ? t('income') : t('expense') }}</div>
             </div>
             <div class="tx-amount" :class="tx.type">{{ tx.type === 'income' ? '+' : '-' }}{{ formatMoney(tx.amount) }}</div>
           </div>
@@ -1239,7 +1239,7 @@ body {
         <div class="cat-grid">
           <div v-for="cat in incomeCategories" :key="cat.id" class="cat-card" @click="openCatModal(cat)">
             <div class="cat-icon" :style="{background: cat.color + '20', color: cat.color}">{{ cat.icon || '💰' }}</div>
-            <div class="cat-name">{{ cat.name }}</div>
+            <div class="cat-name">{{ catName(cat) }}</div>
             <div class="actions">
               <button class="btn-icon" @click.stop="deleteCategory(cat)" title="删除">🗑</button>
             </div>
@@ -1255,7 +1255,7 @@ body {
         <div class="cat-grid">
           <div v-for="cat in expenseCategories" :key="cat.id" class="cat-card" @click="openCatModal(cat)">
             <div class="cat-icon" :style="{background: cat.color + '20', color: cat.color}">{{ cat.icon || '🛒' }}</div>
-            <div class="cat-name">{{ cat.name }}</div>
+            <div class="cat-name">{{ catName(cat) }}</div>
             <div class="actions">
               <button class="btn-icon" @click.stop="deleteCategory(cat)" title="删除">🗑</button>
             </div>
@@ -1349,7 +1349,7 @@ body {
           <label class="form-label">{{ t('category') }}</label>
           <select class="form-select" v-model="txModal.form.categoryId" required>
             <option value="" disabled>{{ t('selectCat') }}</option>
-            <option v-for="cat in categoriesForType(txModal.form.type)" :key="cat.id" :value="cat.id">{{ cat.icon }} {{ cat.name }}</option>
+            <option v-for="cat in categoriesForType(txModal.form.type)" :key="cat.id" :value="cat.id">{{ cat.icon }} {{ catName(cat) }}</option>
           </select>
           <div v-if="categoriesForType(txModal.form.type).length === 0" class="form-hint">
             {{ t('noCatYet', {type: txModal.form.type === 'income' ? t('income') : t('expense')}) }} <a href="#" @click.prevent="closeTxModal; activeTab='categories'" style="color:var(--accent); font-weight:600;">{{ t('goAdd') }}</a>
@@ -1386,6 +1386,10 @@ body {
         <div class="form-group">
           <label class="form-label">{{ t('name') }}</label>
           <input class="form-input" v-model="catModal.form.name" :placeholder="t('namePh')" maxlength="20" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">{{ t('nameEn') }}</label>
+          <input class="form-input" v-model="catModal.form.nameEn" placeholder="Salary / Rent" maxlength="20">
         </div>
         <div class="form-group">
           <label class="form-label">{{ t('icon') }}</label>
@@ -1478,6 +1482,7 @@ const I18N = {
     note: '备注 (选填)',
     notePh: '如: 午餐 / 客户A首期',
     name: '名称',
+    nameEn: '英文名 (English, 选填)',
     namePh: '如: 薪水 / 租金',
     icon: '图标 (Emoji)',
     iconPh: '💰',
@@ -1551,6 +1556,7 @@ const I18N = {
     note: 'Note (optional)',
     notePh: 'e.g. Lunch / Customer A deposit',
     name: 'Name',
+    nameEn: 'English Name (optional)',
     namePh: 'e.g. Salary / Rent',
     icon: 'Icon (Emoji)',
     iconPh: '💰',
@@ -1638,6 +1644,10 @@ createApp({
     function toggleLang() {
       i18n.lang = i18n.lang === 'zh' ? 'en' : 'zh';
       localStorage.setItem(STORAGE_KEYS.lang, i18n.lang);
+      updateDocTitle();
+    }
+    function updateDocTitle() {
+      document.title = t('title') + ' · ' + t('subtitle');
     }
 
     // State
@@ -1709,7 +1719,7 @@ createApp({
         .filter(([id, info]) => info.type === 'expense')
         .map(([id, info]) => {
           const cat = categories.value.find(c => c.id === id) || { name: i18n.lang === 'en' ? 'Uncategorized' : '未分类', color: '#8E8E93', icon: '📦' };
-          return { id, name: cat.name, color: cat.color, icon: cat.icon, amount: info.amount, count: info.count };
+          return { id, name: catName(cat), color: cat.color, icon: cat.icon, amount: info.amount, count: info.count };
         })
         .sort((a, b) => b.amount - a.amount)
         .slice(0, 5);
@@ -1744,6 +1754,11 @@ createApp({
     function getCategory(id) {
       return categories.value.find(c => c.id === id) || { name: i18n.lang === 'en' ? 'Uncategorized' : '未分类', color: '#8E8E93', icon: '📦', type: 'expense' };
     }
+    function catName(cat) {
+      if (!cat) return '';
+      if (i18n.lang === 'en' && cat.nameEn) return cat.nameEn;
+      return cat.name;
+    }
     function categoriesForType(type) {
       return type === 'income' ? incomeCategories.value : expenseCategories.value;
     }
@@ -1764,11 +1779,31 @@ createApp({
           categories.value = r.categories || [];
           localStorage.setItem(STORAGE_KEYS.categories, JSON.stringify(categories.value));
           if (categories.value.length === 0) await seedDefaults();
+          else await migrateCategoryTranslations();
         }
       } catch (e) {
         const cached = localStorage.getItem(STORAGE_KEYS.categories);
         if (cached) categories.value = JSON.parse(cached);
         else categories.value = [];
+      }
+    }
+
+    // 迁移: 给已有默认类别补上 nameEn (v1.1 新增)
+    async function migrateCategoryTranslations() {
+      const enNames = I18N.en.defaultCatNames;
+      let needsUpdate = false;
+      const newCats = categories.value.map(c => {
+        if (enNames[c.id] && !c.nameEn) {
+          needsUpdate = true;
+          return { ...c, nameEn: enNames[c.id] };
+        }
+        return c;
+      });
+      if (needsUpdate) {
+        categories.value = newCats;
+        try {
+          await apiPost('saveCategories', { categories: newCats });
+        } catch (e) {}
       }
     }
 
@@ -1828,15 +1863,16 @@ createApp({
 
     async function seedDefaults() {
       const names = I18N[i18n.lang].defaultCatNames;
+      const enNames = I18N.en.defaultCatNames;
       const defaults = [
-        { id: 'cat_inc_salary', name: names.cat_inc_salary, type: 'income', color: '#34C759', icon: '💰' },
-        { id: 'cat_inc_other', name: names.cat_inc_other, type: 'income', color: '#5AC8FA', icon: '💵' },
-        { id: 'cat_exp_rent', name: names.cat_exp_rent, type: 'expense', color: '#FF9500', icon: '🏠' },
-        { id: 'cat_exp_meal', name: names.cat_exp_meal, type: 'expense', color: '#FF3B30', icon: '🍔' },
-        { id: 'cat_exp_transport', name: names.cat_exp_transport, type: 'expense', color: '#007AFF', icon: '🚗' },
-        { id: 'cat_exp_office', name: names.cat_exp_office, type: 'expense', color: '#5856D6', icon: '✏️' },
-        { id: 'cat_exp_utility', name: names.cat_exp_utility, type: 'expense', color: '#FFCC00', icon: '⚡' },
-        { id: 'cat_exp_salary', name: names.cat_exp_salary, type: 'expense', color: '#AF52DE', icon: '👥' }
+        { id: 'cat_inc_salary', name: names.cat_inc_salary, nameEn: enNames.cat_inc_salary, type: 'income', color: '#34C759', icon: '💰' },
+        { id: 'cat_inc_other', name: names.cat_inc_other, nameEn: enNames.cat_inc_other, type: 'income', color: '#5AC8FA', icon: '💵' },
+        { id: 'cat_exp_rent', name: names.cat_exp_rent, nameEn: enNames.cat_exp_rent, type: 'expense', color: '#FF9500', icon: '🏠' },
+        { id: 'cat_exp_meal', name: names.cat_exp_meal, nameEn: enNames.cat_exp_meal, type: 'expense', color: '#FF3B30', icon: '🍔' },
+        { id: 'cat_exp_transport', name: names.cat_exp_transport, nameEn: enNames.cat_exp_transport, type: 'expense', color: '#007AFF', icon: '🚗' },
+        { id: 'cat_exp_office', name: names.cat_exp_office, nameEn: enNames.cat_exp_office, type: 'expense', color: '#5856D6', icon: '✏️' },
+        { id: 'cat_exp_utility', name: names.cat_exp_utility, nameEn: enNames.cat_exp_utility, type: 'expense', color: '#FFCC00', icon: '⚡' },
+        { id: 'cat_exp_salary', name: names.cat_exp_salary, nameEn: enNames.cat_exp_salary, type: 'expense', color: '#AF52DE', icon: '👥' }
       ];
       try {
         await apiPost('saveCategories', { categories: defaults });
@@ -1986,10 +2022,10 @@ createApp({
     function openCatModal(cat, type) {
       if (cat) {
         catModal.editing = cat;
-        catModal.form = { type: cat.type, name: cat.name, color: cat.color, icon: cat.icon || '📦' };
+        catModal.form = { type: cat.type, name: cat.name, nameEn: cat.nameEn || '', color: cat.color, icon: cat.icon || '📦' };
       } else {
         catModal.editing = null;
-        catModal.form = { type: type || 'expense', name: '', color: COLOR_PRESETS[Math.floor(Math.random() * COLOR_PRESETS.length)], icon: type === 'income' ? '💰' : '🛒' };
+        catModal.form = { type: type || 'expense', name: '', nameEn: '', color: COLOR_PRESETS[Math.floor(Math.random() * COLOR_PRESETS.length)], icon: type === 'income' ? '💰' : '🛒' };
       }
       catModal.open = true;
     }
@@ -1998,9 +2034,9 @@ createApp({
       if (!catModal.form.name) return;
       let newCats;
       if (catModal.editing) {
-        newCats = categories.value.map(c => c.id === catModal.editing.id ? { ...c, name: catModal.form.name, color: catModal.form.color, icon: catModal.form.icon } : c);
+        newCats = categories.value.map(c => c.id === catModal.editing.id ? { ...c, name: catModal.form.name, nameEn: catModal.form.nameEn || '', color: catModal.form.color, icon: catModal.form.icon } : c);
       } else {
-        const newCat = { id: 'cat_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6), name: catModal.form.name, type: catModal.form.type, color: catModal.form.color, icon: catModal.form.icon };
+        const newCat = { id: 'cat_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6), name: catModal.form.name, nameEn: catModal.form.nameEn || '', type: catModal.form.type, color: catModal.form.color, icon: catModal.form.icon };
         newCats = [...categories.value, newCat];
       }
       try {
@@ -2012,10 +2048,11 @@ createApp({
     async function deleteCategory(cat) {
       const inUse = transactions.value.some(t => t.categoryId === cat.id);
       const uncat = i18n.lang === 'en' ? 'Uncategorized' : '未分类';
+      const cname = catName(cat);
       if (inUse) {
-        if (!confirm((i18n.lang === 'en' ? `Category "${cat.name}" is in use. Delete anyway?\n(Used transactions will show as "${uncat}")` : `类别「${cat.name}」正在被本月交易使用,确定要删除吗?\n(已使用的交易会显示为"未分类")`))) return;
+        if (!confirm((i18n.lang === 'en' ? `Category "${cname}" is in use. Delete anyway?\n(Used transactions will show as "${uncat}")` : `类别「${cname}」正在被本月交易使用,确定要删除吗?\n(已使用的交易会显示为"未分类")`))) return;
       } else {
-        if (!confirm((i18n.lang === 'en' ? `Delete category "${cat.name}"?` : `确定删除类别「${cat.name}」?`))) return;
+        if (!confirm((i18n.lang === 'en' ? `Delete category "${cname}"?` : `确定删除类别「${cname}」?`))) return;
       }
       const newCats = categories.value.filter(c => c.id !== cat.id);
       try {
@@ -2046,7 +2083,7 @@ createApp({
         const header = [i18n.lang === 'en' ? 'Date' : '日期', i18n.lang === 'en' ? 'Type' : '类型', i18n.lang === 'en' ? 'Category' : '类别', i18n.lang === 'en' ? 'Amount (RM)' : '金额(RM)', i18n.lang === 'en' ? 'Note' : '备注'];
         const rows = txs.map(tx => {
           const cat = getCategory(tx.categoryId);
-          return [tx.date, tx.type === 'income' ? (i18n.lang === 'en' ? 'Income' : '收入') : (i18n.lang === 'en' ? 'Expense' : '支出'), cat.name, tx.amount.toFixed(2), (tx.description || '').replace(/"/g, '""')];
+          return [tx.date, tx.type === 'income' ? (i18n.lang === 'en' ? 'Income' : '收入') : (i18n.lang === 'en' ? 'Expense' : '支出'), catName(cat), tx.amount.toFixed(2), (tx.description || '').replace(/"/g, '""')];
         });
         const csv = [header, ...rows].map(row => row.map(c => /[",\n]/.test(c) ? `"${c}"` : c).join(',')).join('\n');
         downloadFile('monthly-expenses-' + reportYear.value + '.csv', '\uFEFF' + csv, 'text/csv;charset=utf-8');
@@ -2092,6 +2129,7 @@ createApp({
 
     onMounted(async () => {
       window.addEventListener('keydown', onKey);
+      updateDocTitle();
       window.addEventListener('resize', () => {
         trendChartInstance && trendChartInstance.resize();
         pieChartInstance && pieChartInstance.resize();
@@ -2127,7 +2165,7 @@ createApp({
       toast,
       openTxModal, closeTxModal, saveTx, deleteTx,
       openCatModal, closeCatModal, saveCategory, deleteCategory,
-      formatMoney, formatDateText,
+      formatMoney, formatDateText, catName,
       exportJSON, exportCSV, confirmClearAll,
       loadYearlyStats
     };
