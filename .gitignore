@@ -1,0 +1,14 @@
+node_modules/
+*.log
+.DS_Store
+.env
+.env.local
+.vscode/
+.idea/
+__pycache__/
+*.pyc
+*.bak
+*.tmp
+gas/*.bak
+dist/*.bak
+index_backup_*.html
