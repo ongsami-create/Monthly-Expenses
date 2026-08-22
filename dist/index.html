@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html :lang="i18n.lang">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Monthly Expenses · 简易记账</title>
+<title>{{ t('title') }} · {{ t('subtitle') }}</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%23007AFF'/><text x='50%' y='50%' dominant-baseline='central' text-anchor='middle' font-size='36'>📊</text></svg>">
 <script src="https://unpkg.com/vue@3.4.21/dist/vue.global.prod.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
@@ -12,7 +12,8 @@
   --bg: #F5F5F7;
   --bg-secondary: #ECEDEF;
   --bg-elevated: #FFFFFF;
-  --bg-translucent: rgba(245, 245, 247, 0.72);
+  --bg-translucent: rgba(245, 245, 247, 0.78);
+  --bg-hero: linear-gradient(135deg, #F0F6FF 0%, #FAF5FF 50%, #FFF0F6 100%);
   --text: #1D1D1F;
   --text-secondary: #6E6E73;
   --text-tertiary: #86868B;
@@ -22,27 +23,39 @@
   --accent: #007AFF;
   --accent-hover: #0A84FF;
   --accent-pressed: #0060DF;
+  --accent-soft: rgba(0, 122, 255, 0.12);
   --success: #34C759;
+  --success-soft: rgba(52, 199, 89, 0.12);
   --danger: #FF3B30;
+  --danger-soft: rgba(255, 59, 48, 0.12);
   --warning: #FF9500;
+  --warning-soft: rgba(255, 149, 0, 0.12);
+  --purple: #AF52DE;
+  --teal: #5AC8FA;
+  --pink: #FF2D55;
+  --yellow: #FFD60A;
   --income: #34C759;
   --expense: #FF3B30;
   --profit: #007AFF;
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.06), 0 0 0 0.5px rgba(0,0,0,0.04);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.08), 0 0 0 0.5px rgba(0,0,0,0.04);
-  --shadow-lg: 0 16px 40px rgba(0,0,0,0.12), 0 0 0 0.5px rgba(0,0,0,0.06);
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 20px;
+  --shadow-xs: 0 0.5px 1px rgba(0,0,0,0.04);
+  --shadow-sm: 0 2px 6px rgba(0,0,0,0.06), 0 0 0 0.5px rgba(0,0,0,0.04);
+  --shadow-md: 0 6px 18px rgba(0,0,0,0.08), 0 0 0 0.5px rgba(0,0,0,0.04);
+  --shadow-lg: 0 18px 48px rgba(0,0,0,0.12), 0 0 0 0.5px rgba(0,0,0,0.06);
+  --shadow-xl: 0 28px 80px rgba(0,0,0,0.16), 0 0 0 0.5px rgba(0,0,0,0.08);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
   --radius-full: 9999px;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { font-size: 14.5px; }
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', 'PingFang SC', 'Microsoft YaHei', sans-serif;
   background: var(--bg);
+  background-image: var(--bg-hero);
+  background-attachment: fixed;
   color: var(--text);
-  font-size: 13.5px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -50,66 +63,78 @@ body {
   overflow-x: hidden;
 }
 * { scroll-behavior: smooth; }
-*::-webkit-scrollbar { width: 8px; height: 8px; }
-*::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 4px; }
-*::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.35); }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.18); border-radius: 5px; border: 2px solid transparent; background-clip: padding-box; }
+*::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.32); border: 2px solid transparent; background-clip: padding-box; }
 *::-webkit-scrollbar-track { background: transparent; }
 
 /* ===== Topbar (macOS Big Sur 玻璃感) ===== */
 .topbar {
   background: var(--bg-translucent);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(24px);
+  backdrop-filter: saturate(180%) blur(24px);
   border-bottom: 1px solid var(--separator);
-  padding: 8px 24px;
+  padding: 10px 28px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   position: sticky;
   top: 0;
   z-index: 100;
-  gap: 12px;
+  gap: 16px;
+  min-height: 88px;
 }
-.brand { display: flex; align-items: center; gap: 10px; }
+.brand { display: flex; align-items: center; gap: 16px; flex: 1; min-width: 0; }
 .brand-mark {
-  width: 38px; height: 38px;
-  background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%);
-  border-radius: 10px;
-  display: flex; align-items: center; justify-content: center;
-  color: white; font-size: 20px;
-  box-shadow: 0 2px 8px rgba(0,122,255,0.3);
+  height: 72px; width: auto;
+  object-fit: contain;
+  align-self: center;
+  flex-shrink: 0;
+  /* 不要再加白底 / traffic lights (用户原话) */
 }
-.brand h1 { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
-.brand .sub { color: var(--text-secondary); font-size: 11px; margin-top: -2px; }
-.topbar-actions { display: flex; gap: 6px; align-items: center; }
+.brand-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.brand h1 {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  background: linear-gradient(135deg, #1D1D1F 0%, #424245 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.brand .sub { color: var(--text-secondary); font-size: 13px; font-weight: 500; }
+.topbar-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
 
 /* ===== Month switcher (玻璃 pill) ===== */
 .month-switcher {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   background: rgba(0,0,0,0.05);
   border-radius: var(--radius-md);
-  padding: 3px;
+  padding: 4px;
+  flex-shrink: 0;
 }
 .month-btn {
   background: transparent;
   border: none;
-  width: 28px; height: 28px;
-  border-radius: 7px;
+  width: 32px; height: 32px;
+  border-radius: 8px;
   cursor: pointer;
   color: var(--text-secondary);
-  font-size: 14px;
+  font-size: 16px;
+  font-weight: 600;
   display: flex; align-items: center; justify-content: center;
   transition: all 0.12s;
 }
 .month-btn:hover { background: rgba(0,0,0,0.08); color: var(--text); }
 .month-label {
-  padding: 0 12px;
-  font-size: 13px;
-  font-weight: 600;
+  padding: 0 14px;
+  font-size: 15px;
+  font-weight: 700;
   letter-spacing: -0.01em;
-  min-width: 100px;
+  min-width: 120px;
   text-align: center;
   cursor: pointer;
   user-select: none;
@@ -120,59 +145,80 @@ body {
 .btn {
   border: none;
   border-radius: var(--radius-md);
-  padding: 7px 14px;
-  font-size: 13px;
-  font-weight: 500;
+  padding: 9px 18px;
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.12s ease;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   font-family: inherit;
   user-select: none;
+  white-space: nowrap;
 }
 .btn:active { transform: scale(0.97); }
-.btn-primary { background: var(--accent); color: var(--text-on-accent); }
-.btn-primary:hover { background: var(--accent-hover); }
+.btn-primary {
+  background: linear-gradient(180deg, #0A84FF 0%, #007AFF 100%);
+  color: var(--text-on-accent);
+  box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3);
+}
+.btn-primary:hover { background: linear-gradient(180deg, #1E94FF 0%, #0A84FF 100%); box-shadow: 0 4px 12px rgba(0, 122, 255, 0.4); }
+.btn-primary:active { background: var(--accent-pressed); }
 .btn-secondary { background: rgba(0,0,0,0.05); color: var(--text); }
 .btn-secondary:hover { background: rgba(0,0,0,0.08); }
 .btn-danger { background: var(--danger); color: var(--text-on-accent); }
 .btn-danger:hover { background: #FF453A; }
 .btn-success { background: var(--success); color: var(--text-on-accent); }
 .btn-success:hover { background: #2BD14A; }
-.btn-sm { padding: 4px 10px; font-size: 12px; }
+.btn-sm { padding: 6px 12px; font-size: 13px; }
 .btn-icon {
   background: transparent;
-  width: 30px; height: 30px;
+  width: 36px; height: 36px;
   border-radius: var(--radius-md);
   display: flex; align-items: center; justify-content: center;
-  font-size: 14px;
+  font-size: 16px;
   cursor: pointer;
   color: var(--text-secondary);
 }
 .btn-icon:hover { background: rgba(0,0,0,0.06); color: var(--text); }
 .btn:disabled, .btn-icon:disabled { opacity: 0.4; cursor: not-allowed; }
 
+/* ===== Language toggle ===== */
+.lang-toggle {
+  background: rgba(0,0,0,0.05);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  padding: 7px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--text-secondary);
+  min-width: 44px;
+  transition: all 0.12s;
+}
+.lang-toggle:hover { background: rgba(0,0,0,0.08); color: var(--text); border-color: var(--border); }
+
 /* ===== Tabs ===== */
 .tabs {
   display: flex;
-  gap: 4px;
-  padding: 12px 24px 0;
-  background: var(--bg);
-  border-bottom: 1px solid var(--separator);
+  gap: 2px;
+  padding: 12px 28px 0;
   position: sticky;
-  top: 54px;
+  top: 88px;
   z-index: 90;
   -webkit-backdrop-filter: saturate(180%) blur(20px);
   backdrop-filter: saturate(180%) blur(20px);
   background: var(--bg-translucent);
+  border-bottom: 1px solid var(--separator);
 }
 .tab {
   background: transparent;
   border: none;
-  padding: 8px 16px;
-  font-size: 13px;
-  font-weight: 500;
+  padding: 10px 20px;
+  font-size: 14.5px;
+  font-weight: 600;
   color: var(--text-secondary);
   cursor: pointer;
   border-radius: var(--radius-md) var(--radius-md) 0 0;
@@ -186,74 +232,166 @@ body {
 .tab.active::after {
   content: '';
   position: absolute;
-  bottom: -1px; left: 8px; right: 8px;
-  height: 2px;
-  background: var(--accent);
-  border-radius: 1px;
+  bottom: -1px; left: 12px; right: 12px;
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent) 0%, var(--purple) 100%);
+  border-radius: 2px;
 }
 
 /* ===== Content area ===== */
 .content {
-  padding: 20px 24px 60px;
+  padding: 28px 28px 100px;
   max-width: 1280px;
   margin: 0 auto;
+}
+
+/* ===== Hero strip (month + big number preview) ===== */
+.hero-strip {
+  background: linear-gradient(135deg, #007AFF 0%, #5856D6 50%, #AF52DE 100%);
+  border-radius: var(--radius-xl);
+  padding: 28px 32px;
+  margin-bottom: 20px;
+  color: white;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+}
+.hero-strip::before {
+  content: '';
+  position: absolute;
+  top: -50%; right: -10%;
+  width: 400px; height: 400px;
+  background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
+  pointer-events: none;
+}
+.hero-strip::after {
+  content: '';
+  position: absolute;
+  bottom: -40%; left: -5%;
+  width: 300px; height: 300px;
+  background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+  pointer-events: none;
+}
+.hero-strip .label {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.85;
+  margin-bottom: 4px;
+  position: relative;
+  z-index: 1;
+}
+.hero-strip .month-text {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin-bottom: 18px;
+  position: relative;
+  z-index: 1;
+}
+.hero-strip .quick-stats {
+  display: flex;
+  gap: 32px;
+  position: relative;
+  z-index: 1;
+}
+.hero-strip .qs {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.hero-strip .qs-label {
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.85;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.hero-strip .qs-value {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ===== Cards (summary) ===== */
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  margin-bottom: 20px;
+  gap: 14px;
+  margin-bottom: 22px;
 }
 .summary-card {
   background: var(--bg-elevated);
   border-radius: var(--radius-lg);
-  padding: 18px;
+  padding: 22px;
   box-shadow: var(--shadow-sm);
   position: relative;
   overflow: hidden;
+  transition: all 0.2s;
 }
+.summary-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
 .summary-card::before {
   content: '';
   position: absolute;
   top: 0; left: 0; right: 0;
-  height: 3px;
+  height: 4px;
 }
-.summary-card.income::before { background: var(--income); }
-.summary-card.expense::before { background: var(--expense); }
-.summary-card.profit::before { background: var(--profit); }
+.summary-card.income::before { background: linear-gradient(90deg, #34C759, #5AC8FA); }
+.summary-card.expense::before { background: linear-gradient(90deg, #FF3B30, #FF9500); }
+.summary-card.profit::before { background: linear-gradient(90deg, #007AFF, #5856D6); }
+.summary-card .corner-deco {
+  position: absolute;
+  top: -30px; right: -30px;
+  width: 100px; height: 100px;
+  border-radius: 50%;
+  opacity: 0.06;
+  pointer-events: none;
+}
+.summary-card.income .corner-deco { background: var(--income); }
+.summary-card.expense .corner-deco { background: var(--expense); }
+.summary-card.profit .corner-deco { background: var(--profit); }
 .summary-label {
-  font-size: 11px;
+  font-size: 12px;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   color: var(--text-tertiary);
-  font-weight: 600;
-  margin-bottom: 8px;
+  font-weight: 700;
+  margin-bottom: 10px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  position: relative;
+  z-index: 1;
 }
 .summary-value {
-  font-size: 28px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  font-size: 38px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
   line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  position: relative;
+  z-index: 1;
 }
 .summary-value.income { color: var(--income); }
 .summary-value.expense { color: var(--expense); }
 .summary-value.profit { color: var(--profit); }
 .summary-meta {
-  margin-top: 6px;
-  font-size: 11px;
+  margin-top: 8px;
+  font-size: 12px;
   color: var(--text-tertiary);
+  position: relative;
+  z-index: 1;
+  font-weight: 500;
 }
 .summary-icon {
   display: inline-flex;
   align-items: center; justify-content: center;
-  width: 18px; height: 18px;
-  border-radius: 5px;
-  font-size: 11px;
+  width: 22px; height: 22px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 800;
   color: white;
 }
 .summary-icon.income { background: var(--income); }
@@ -263,78 +401,91 @@ body {
 /* ===== Charts ===== */
 .charts-grid {
   display: grid;
-  grid-template-columns: 1.5fr 1fr;
-  gap: 12px;
-  margin-bottom: 20px;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 14px;
+  margin-bottom: 22px;
 }
 .chart-card {
   background: var(--bg-elevated);
   border-radius: var(--radius-lg);
-  padding: 18px;
+  padding: 22px;
   box-shadow: var(--shadow-sm);
 }
 .chart-title {
-  font-size: 14px;
-  font-weight: 600;
-  margin-bottom: 12px;
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 14px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  letter-spacing: -0.01em;
 }
-.chart-body { height: 280px; }
-.chart-body.tall { height: 360px; }
+.chart-title .badge {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.chart-body { height: 320px; }
+.chart-body.tall { height: 400px; }
 
 /* ===== Top list (rankings) ===== */
 .rank-list {
   background: var(--bg-elevated);
   border-radius: var(--radius-lg);
-  padding: 18px;
+  padding: 22px;
   box-shadow: var(--shadow-sm);
 }
 .rank-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 0;
+  gap: 14px;
+  padding: 14px 0;
   border-bottom: 1px solid var(--separator);
 }
 .rank-item:last-child { border-bottom: none; }
 .rank-num {
-  width: 24px; height: 24px;
+  width: 32px; height: 32px;
   border-radius: 50%;
   background: var(--bg-secondary);
   display: flex; align-items: center; justify-content: center;
-  font-size: 12px; font-weight: 600;
+  font-size: 14px; font-weight: 800;
   color: var(--text-secondary);
   flex-shrink: 0;
 }
-.rank-item:nth-child(1) .rank-num { background: linear-gradient(135deg, #FFD60A, #FF9500); color: white; }
+.rank-item:nth-child(1) .rank-num { background: linear-gradient(135deg, #FFD60A, #FF9500); color: white; box-shadow: 0 2px 6px rgba(255, 149, 0, 0.3); }
 .rank-item:nth-child(2) .rank-num { background: linear-gradient(135deg, #C7C7CC, #8E8E93); color: white; }
 .rank-item:nth-child(3) .rank-num { background: linear-gradient(135deg, #CD7F32, #8B5A2B); color: white; }
 .rank-icon {
-  width: 32px; height: 32px;
-  border-radius: 8px;
+  width: 42px; height: 42px;
+  border-radius: var(--radius-md);
   display: flex; align-items: center; justify-content: center;
-  font-size: 16px;
+  font-size: 20px;
   flex-shrink: 0;
 }
-.rank-name { flex: 1; font-weight: 500; }
-.rank-amount {
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: var(--expense);
-}
+.rank-body { flex: 1; min-width: 0; }
+.rank-name { font-weight: 600; font-size: 15px; }
 .rank-bar {
-  height: 4px;
+  height: 6px;
   background: var(--bg-secondary);
-  border-radius: 2px;
-  margin-top: 4px;
+  border-radius: 3px;
+  margin-top: 6px;
   overflow: hidden;
 }
 .rank-bar-fill {
   height: 100%;
-  border-radius: 2px;
-  transition: width 0.5s ease;
+  border-radius: 3px;
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.rank-amount {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  font-size: 16px;
+  color: var(--expense);
 }
 
 /* ===== Transactions list ===== */
@@ -344,101 +495,106 @@ body {
   box-shadow: var(--shadow-sm);
   overflow: hidden;
 }
-.tx-day-group { padding: 8px 0; }
+.tx-day-group { padding: 6px 0; }
 .tx-day-header {
-  font-size: 11px;
+  font-size: 12px;
   text-transform: uppercase;
-  font-weight: 600;
-  letter-spacing: 0.05em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
   color: var(--text-tertiary);
-  padding: 8px 18px;
+  padding: 12px 22px;
   background: rgba(0,0,0,0.02);
   display: flex;
   justify-content: space-between;
+  align-items: center;
 }
 .tx-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 18px;
+  gap: 14px;
+  padding: 14px 22px;
   cursor: pointer;
   transition: background 0.12s;
 }
 .tx-row:hover { background: rgba(0,0,0,0.03); }
 .tx-cat-icon {
-  width: 36px; height: 36px;
-  border-radius: 9px;
+  width: 44px; height: 44px;
+  border-radius: var(--radius-md);
   display: flex; align-items: center; justify-content: center;
-  font-size: 16px;
+  font-size: 20px;
   flex-shrink: 0;
 }
 .tx-main { flex: 1; min-width: 0; }
 .tx-desc {
-  font-weight: 500;
+  font-weight: 600;
+  font-size: 15px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .tx-cat-name {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-tertiary);
-  margin-top: 1px;
+  margin-top: 2px;
+  font-weight: 500;
 }
 .tx-amount {
-  font-weight: 600;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
-  font-size: 14px;
+  font-size: 17px;
+  letter-spacing: -0.01em;
 }
 .tx-amount.income { color: var(--income); }
 .tx-amount.expense { color: var(--expense); }
 
 /* ===== Categories page ===== */
-.cat-section { margin-bottom: 24px; }
+.cat-section { margin-bottom: 28px; }
 .cat-section-title {
-  font-size: 14px;
-  font-weight: 600;
-  margin-bottom: 10px;
+  font-size: 17px;
+  font-weight: 700;
+  margin-bottom: 14px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  color: var(--text);
+  letter-spacing: -0.01em;
 }
 .cat-section-title .badge {
   background: var(--bg-secondary);
   color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 500;
-  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 12px;
   border-radius: var(--radius-full);
 }
 .cat-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
 }
 .cat-card {
   background: var(--bg-elevated);
   border-radius: var(--radius-md);
-  padding: 14px;
+  padding: 18px;
   box-shadow: var(--shadow-sm);
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   transition: all 0.15s;
   cursor: pointer;
+  position: relative;
 }
 .cat-card:hover {
-  transform: translateY(-1px);
+  transform: translateY(-2px);
   box-shadow: var(--shadow-md);
 }
 .cat-icon {
-  width: 40px; height: 40px;
-  border-radius: 10px;
+  width: 48px; height: 48px;
+  border-radius: var(--radius-md);
   display: flex; align-items: center; justify-content: center;
-  font-size: 18px;
+  font-size: 22px;
   flex-shrink: 0;
 }
-.cat-name { font-weight: 500; flex: 1; }
+.cat-name { font-weight: 600; flex: 1; font-size: 15px; }
 .cat-card .actions {
   display: none;
   gap: 4px;
@@ -448,43 +604,50 @@ body {
   background: transparent;
   border: 2px dashed var(--border);
   border-radius: var(--radius-md);
-  padding: 14px;
+  padding: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
   color: var(--text-tertiary);
   cursor: pointer;
-  font-size: 13px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
   transition: all 0.15s;
+  min-height: 84px;
 }
 .cat-add:hover {
   border-color: var(--accent);
   color: var(--accent);
-  background: rgba(0,122,255,0.04);
+  background: var(--accent-soft);
 }
 
 /* ===== Reports ===== */
 .report-year-switcher {
   display: flex;
-  gap: 4px;
-  margin-bottom: 16px;
+  gap: 6px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
 }
 .year-btn {
   background: transparent;
   border: 1px solid var(--border);
-  padding: 6px 14px;
+  padding: 8px 18px;
   border-radius: var(--radius-md);
   cursor: pointer;
   font-family: inherit;
-  font-size: 13px;
+  font-size: 14px;
+  font-weight: 600;
   color: var(--text-secondary);
+  transition: all 0.12s;
 }
 .year-btn:hover { background: var(--bg-secondary); }
 .year-btn.active {
-  background: var(--accent);
+  background: linear-gradient(180deg, #0A84FF 0%, #007AFF 100%);
   color: var(--text-on-accent);
   border-color: var(--accent);
+  box-shadow: 0 2px 8px rgba(0, 122, 255, 0.25);
 }
 .report-table {
   background: var(--bg-elevated);
@@ -498,28 +661,29 @@ body {
   border-collapse: collapse;
 }
 .report-table th, .report-table td {
-  padding: 10px 14px;
+  padding: 14px 20px;
   text-align: right;
   border-bottom: 1px solid var(--separator);
   font-variant-numeric: tabular-nums;
-  font-size: 13px;
+  font-size: 14px;
 }
 .report-table th:first-child, .report-table td:first-child {
   text-align: left;
 }
 .report-table th {
   background: rgba(0,0,0,0.02);
-  font-weight: 600;
-  font-size: 11px;
+  font-weight: 700;
+  font-size: 12px;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   color: var(--text-tertiary);
 }
 .report-table tr:hover td { background: rgba(0,0,0,0.02); }
 .report-table tfoot td {
-  font-weight: 700;
+  font-weight: 800;
   background: rgba(0,0,0,0.03);
   border-top: 2px solid var(--border);
+  font-size: 15px;
 }
 .report-table .profit-pos { color: var(--income); }
 .report-table .profit-neg { color: var(--expense); }
@@ -528,69 +692,72 @@ body {
 .modal-overlay {
   position: fixed; inset: 0;
   background: rgba(0,0,0,0.4);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
   display: flex; align-items: center; justify-content: center;
   z-index: 1000;
   animation: fadeIn 0.15s ease;
+  padding: 20px;
 }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 .modal {
   background: var(--bg-elevated);
-  border-radius: var(--radius-lg);
-  width: 90%;
-  max-width: 480px;
+  border-radius: var(--radius-xl);
+  width: 100%;
+  max-width: 520px;
   max-height: 90vh;
   overflow: hidden;
   display: flex; flex-direction: column;
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-xl);
   animation: slideUp 0.2s ease;
 }
-@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes slideUp { from { transform: translateY(20px) scale(0.98); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
 .modal-header {
-  padding: 16px 20px;
+  padding: 18px 24px;
   border-bottom: 1px solid var(--separator);
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
-.modal-title { font-size: 15px; font-weight: 600; }
+.modal-title { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
 .modal-close {
   background: transparent;
   border: none;
-  font-size: 20px;
+  font-size: 22px;
   cursor: pointer;
   color: var(--text-tertiary);
-  width: 28px; height: 28px;
-  border-radius: 6px;
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  line-height: 1;
 }
 .modal-close:hover { background: rgba(0,0,0,0.06); color: var(--text); }
-.modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+.modal-body { padding: 24px; overflow-y: auto; flex: 1; }
 .modal-footer {
-  padding: 12px 20px;
+  padding: 14px 24px;
   border-top: 1px solid var(--separator);
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 10px;
 }
 
 /* ===== Form ===== */
-.form-group { margin-bottom: 14px; }
+.form-group { margin-bottom: 16px; }
 .form-label {
   display: block;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   color: var(--text-tertiary);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 .form-input, .form-select {
   width: 100%;
-  padding: 9px 12px;
+  padding: 11px 14px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  font-size: 14px;
+  font-size: 15px;
   font-family: inherit;
   background: var(--bg-elevated);
   color: var(--text);
@@ -599,30 +766,30 @@ body {
 .form-input:focus, .form-select:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(0,122,255,0.15);
+  box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.15);
 }
-.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .form-hint {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-tertiary);
-  margin-top: 4px;
+  margin-top: 6px;
 }
 .type-toggle {
   display: flex;
   gap: 4px;
   background: var(--bg-secondary);
   border-radius: var(--radius-md);
-  padding: 3px;
+  padding: 4px;
 }
 .type-toggle button {
   flex: 1;
   background: transparent;
   border: none;
-  padding: 8px;
-  font-size: 13px;
-  font-weight: 500;
+  padding: 10px;
+  font-size: 14px;
+  font-weight: 600;
   color: var(--text-secondary);
-  border-radius: 7px;
+  border-radius: 8px;
   cursor: pointer;
   font-family: inherit;
   transition: all 0.15s;
@@ -630,29 +797,33 @@ body {
 .type-toggle button.active.income {
   background: var(--income);
   color: white;
+  box-shadow: 0 2px 6px rgba(52, 199, 89, 0.3);
 }
 .type-toggle button.active.expense {
   background: var(--expense);
   color: white;
+  box-shadow: 0 2px 6px rgba(255, 59, 48, 0.3);
 }
 
 /* ===== Color picker ===== */
 .color-picker {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 .color-swatch {
-  width: 28px; height: 28px;
-  border-radius: 8px;
+  width: 34px; height: 34px;
+  border-radius: 9px;
   cursor: pointer;
-  border: 2px solid transparent;
+  border: 3px solid transparent;
   transition: all 0.15s;
   position: relative;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 .color-swatch:hover { transform: scale(1.1); }
 .color-swatch.selected {
   border-color: var(--text);
+  transform: scale(1.05);
 }
 .color-swatch.selected::after {
   content: '✓';
@@ -660,8 +831,8 @@ body {
   inset: 0;
   display: flex; align-items: center; justify-content: center;
   color: white;
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 14px;
+  font-weight: 800;
 }
 
 /* ===== Icon picker (emoji) ===== */
@@ -669,17 +840,17 @@ body {
   display: flex;
   gap: 4px;
   flex-wrap: wrap;
-  max-height: 180px;
+  max-height: 200px;
   overflow-y: auto;
-  padding: 4px;
+  padding: 6px;
   background: var(--bg-secondary);
   border-radius: var(--radius-md);
 }
 .icon-swatch {
-  width: 32px; height: 32px;
-  border-radius: 7px;
+  width: 36px; height: 36px;
+  border-radius: 8px;
   display: flex; align-items: center; justify-content: center;
-  font-size: 18px;
+  font-size: 19px;
   cursor: pointer;
   background: var(--bg-elevated);
   transition: all 0.12s;
@@ -693,18 +864,19 @@ body {
 /* ===== Toast ===== */
 .toast {
   position: fixed;
-  bottom: 24px;
+  bottom: 32px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(0,0,0,0.85);
+  background: rgba(0,0,0,0.88);
   color: white;
-  padding: 10px 18px;
+  padding: 12px 22px;
   border-radius: var(--radius-md);
-  font-size: 13px;
+  font-size: 14px;
+  font-weight: 500;
   z-index: 2000;
   box-shadow: var(--shadow-lg);
   animation: toastIn 0.2s ease;
-  display: flex; align-items: center; gap: 8px;
+  display: flex; align-items: center; gap: 10px;
 }
 .toast.success { background: var(--success); }
 .toast.error { background: var(--danger); }
@@ -716,35 +888,37 @@ body {
 /* ===== Empty state ===== */
 .empty {
   text-align: center;
-  padding: 60px 20px;
+  padding: 80px 20px;
   color: var(--text-tertiary);
 }
 .empty-icon {
-  font-size: 48px;
-  margin-bottom: 12px;
+  font-size: 64px;
+  margin-bottom: 16px;
   opacity: 0.5;
 }
 .empty-title {
-  font-size: 15px;
-  font-weight: 500;
+  font-size: 18px;
+  font-weight: 700;
   color: var(--text-secondary);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
+  letter-spacing: -0.01em;
 }
-.empty-desc { font-size: 13px; }
-.empty .btn { margin-top: 16px; }
+.empty-desc { font-size: 14px; }
+.empty .btn { margin-top: 20px; }
 
 /* ===== Loading ===== */
 .loading {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 40px;
+  padding: 50px;
   color: var(--text-tertiary);
-  gap: 10px;
+  gap: 12px;
+  font-size: 15px;
 }
 .spinner {
-  width: 20px; height: 20px;
-  border: 2px solid var(--separator);
+  width: 24px; height: 24px;
+  border: 2.5px solid var(--separator);
   border-top-color: var(--accent);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
@@ -753,109 +927,168 @@ body {
 
 /* ===== Connection banner ===== */
 .banner {
-  background: var(--warning);
+  background: linear-gradient(90deg, var(--warning) 0%, #FFB340 100%);
   color: white;
-  padding: 10px 24px;
-  font-size: 12px;
-  font-weight: 500;
+  padding: 12px 28px;
+  font-size: 13px;
+  font-weight: 600;
   text-align: center;
 }
 
 /* ===== Responsive ===== */
 @media (max-width: 768px) {
-  .topbar { padding: 8px 16px; }
-  .tabs { padding: 8px 16px 0; }
+  .topbar { padding: 10px 16px; min-height: 76px; }
+  .tabs { padding: 8px 16px 0; top: 76px; }
   .content { padding: 16px; }
   .summary-grid { grid-template-columns: 1fr; }
   .charts-grid { grid-template-columns: 1fr; }
-  .summary-value { font-size: 24px; }
+  .summary-value { font-size: 30px; }
   .form-row { grid-template-columns: 1fr; }
   .brand .sub { display: none; }
   .topbar-actions .btn span.label { display: none; }
+  .brand-mark { height: 56px; }
+  .brand h1 { font-size: 18px; }
+  .hero-strip { padding: 22px 20px; }
+  .hero-strip .month-text { font-size: 24px; }
+  .hero-strip .quick-stats { gap: 18px; }
+  .hero-strip .qs-value { font-size: 18px; }
+  .month-switcher { display: none; }
 }
 
-/* ===== Category dot helper ===== */
+/* ===== Helpers ===== */
 .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; vertical-align: middle; }
-
-/* ===== Badge / pill ===== */
 .pill {
   display: inline-flex;
   align-items: center;
-  font-size: 10px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding: 2px 6px;
+  letter-spacing: 0.06em;
+  padding: 3px 8px;
   border-radius: var(--radius-sm);
 }
-.pill.income { background: rgba(52, 199, 89, 0.12); color: #248A3D; }
-.pill.expense { background: rgba(255, 59, 48, 0.12); color: #D70015; }
+.pill.income { background: var(--success-soft); color: #248A3D; }
+.pill.expense { background: var(--danger-soft); color: #D70015; }
 
 /* ===== FAB (floating add) ===== */
 .fab {
   position: fixed;
-  right: 28px; bottom: 28px;
-  width: 56px; height: 56px;
+  right: 32px; bottom: 32px;
+  width: 64px; height: 64px;
   border-radius: 50%;
-  background: var(--accent);
+  background: linear-gradient(135deg, #0A84FF 0%, #5856D6 100%);
   color: white;
   border: none;
-  font-size: 24px;
+  font-size: 28px;
+  font-weight: 300;
   cursor: pointer;
-  box-shadow: 0 8px 24px rgba(0,122,255,0.4);
+  box-shadow: 0 10px 32px rgba(0, 122, 255, 0.45);
   display: flex; align-items: center; justify-content: center;
   transition: all 0.15s;
   z-index: 80;
+  line-height: 1;
 }
-.fab:hover { background: var(--accent-hover); transform: scale(1.05); }
+.fab:hover { transform: scale(1.05); box-shadow: 0 12px 40px rgba(0, 122, 255, 0.55); }
 .fab:active { transform: scale(0.95); }
 @media (max-width: 768px) {
-  .fab { right: 16px; bottom: 16px; width: 50px; height: 50px; }
+  .fab { right: 18px; bottom: 18px; width: 56px; height: 56px; font-size: 24px; }
+}
+
+/* ===== Month picker overlay ===== */
+.month-picker-overlay {
+  position: fixed; inset: 0;
+  z-index: 200;
+  background: rgba(0,0,0,0.2);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 120px;
+  animation: fadeIn 0.15s ease;
+}
+.month-picker {
+  background: var(--bg-elevated);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-lg);
+  width: 320px;
+}
+.month-picker-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  font-size: 16px;
+  font-weight: 700;
+}
+.month-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.month-pick-btn {
+  background: var(--bg-secondary);
+  border: none;
+  padding: 14px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--text);
+  transition: all 0.12s;
+}
+.month-pick-btn:hover { background: var(--accent-soft); color: var(--accent); }
+.month-pick-btn.active {
+  background: linear-gradient(180deg, #0A84FF 0%, #007AFF 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3);
 }
 </style>
 </head>
 <body>
 <div id="app" v-cloak>
-  <!-- Connection banner -->
   <div v-if="!connected && apiChecked" class="banner">
-    ⚠️ 无法连接后端 (GAS) — 数据无法保存。请检查 GAS URL 是否正确部署。
+    ⚠️ {{ t('connWarning') }}
   </div>
 
   <!-- Topbar -->
   <div class="topbar">
     <div class="brand">
-      <div class="brand-mark">📊</div>
-      <div>
-        <h1>Monthly Expenses</h1>
-        <div class="sub">简易记账 · {{ yearMonthText }}</div>
+      <img class="brand-mark" src="squirrel-care.png" alt="Squirrel Care" @error="$event.target.style.display='none'">
+      <div class="brand-text">
+        <h1>{{ t('title') }}</h1>
+        <div class="sub">{{ yearMonthText }}</div>
       </div>
     </div>
     <div class="month-switcher">
-      <button class="month-btn" @click="changeMonth(-1)" title="上一月">‹</button>
+      <button class="month-btn" @click="changeMonth(-1)" :title="t('prevMonth')">‹</button>
       <span class="month-label" @click="monthPickerOpen = !monthPickerOpen">{{ yearMonthText }}</span>
-      <button class="month-btn" @click="changeMonth(1)" title="下一月">›</button>
+      <button class="month-btn" @click="changeMonth(1)" :title="t('nextMonth')">›</button>
     </div>
     <div class="topbar-actions">
-      <button class="btn btn-secondary" @click="exportJSON" title="导出 JSON">
-        <span>📥</span> <span class="label">导出</span>
+      <button class="lang-toggle" @click="toggleLang" :title="t('switchLang')">{{ i18n.lang === 'zh' ? 'EN' : '中' }}</button>
+      <button class="btn btn-secondary" @click="exportJSON" :title="t('export')">
+        <span>📥</span> <span class="label">{{ t('export') }}</span>
       </button>
-      <button class="btn btn-primary" @click="openTxModal()" title="新增 (N)">
-        <span>+</span> <span class="label">记账</span>
+      <button class="btn btn-primary" @click="openTxModal()" :title="t('add') + ' (N)'">
+        <span style="font-size:18px; line-height:1;">+</span> <span class="label">{{ t('add') }}</span>
       </button>
     </div>
   </div>
 
-  <!-- Month picker dropdown -->
-  <div v-if="monthPickerOpen" @click.self="monthPickerOpen = false" style="position:fixed; inset:0; z-index:200;">
-    <div style="position:absolute; top:54px; right:50%; transform:translateX(50%); background:var(--bg-elevated); border-radius:var(--radius-lg); padding:16px; box-shadow:var(--shadow-lg); width:280px;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+  <!-- Month picker overlay -->
+  <div v-if="monthPickerOpen" class="month-picker-overlay" @click.self="monthPickerOpen = false">
+    <div class="month-picker">
+      <div class="month-picker-header">
         <button class="btn-icon" @click="yearOffset--">‹</button>
-        <strong>{{ currentYear + yearOffset }}</strong>
+        <span>{{ currentYear + yearOffset }}</span>
         <button class="btn-icon" @click="yearOffset++">›</button>
       </div>
-      <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:6px;">
-        <button v-for="(m, i) in 12" :key="i" class="btn btn-sm" :class="{'btn-primary': (currentYear + yearOffset) + '-' + String(i+1).padStart(2,'0') === currentMonth, 'btn-secondary': (currentYear + yearOffset) + '-' + String(i+1).padStart(2,'0') !== currentMonth}" @click="goToMonth((currentYear + yearOffset) + '-' + String(i+1).padStart(2,'0')); monthPickerOpen = false;">
-          {{ i+1 }}月
+      <div class="month-picker-grid">
+        <button v-for="(m, i) in 12" :key="i" class="month-pick-btn" :class="{active: (currentYear + yearOffset) + '-' + String(i+1).padStart(2,'0') === currentMonth}" @click="goToMonth((currentYear + yearOffset) + '-' + String(i+1).padStart(2,'0')); monthPickerOpen = false;">
+          {{ i+1 }}{{ t('monthShort') }}
         </button>
       </div>
     </div>
@@ -863,72 +1096,100 @@ body {
 
   <!-- Tabs -->
   <div class="tabs">
-    <button class="tab" :class="{active: activeTab === 'overview'}" @click="activeTab = 'overview'">概览</button>
-    <button class="tab" :class="{active: activeTab === 'transactions'}" @click="activeTab = 'transactions'">明细</button>
-    <button class="tab" :class="{active: activeTab === 'categories'}" @click="activeTab = 'categories'">类别</button>
-    <button class="tab" :class="{active: activeTab === 'reports'}" @click="activeTab = 'reports'">报表</button>
+    <button class="tab" :class="{active: activeTab === 'overview'}" @click="activeTab = 'overview'">{{ t('tabOverview') }}</button>
+    <button class="tab" :class="{active: activeTab === 'transactions'}" @click="activeTab = 'transactions'">{{ t('tabTx') }}</button>
+    <button class="tab" :class="{active: activeTab === 'categories'}" @click="activeTab = 'categories'">{{ t('tabCat') }}</button>
+    <button class="tab" :class="{active: activeTab === 'reports'}" @click="activeTab = 'reports'">{{ t('tabReport') }}</button>
   </div>
 
   <!-- Content -->
   <div class="content">
-    <!-- Loading -->
     <div v-if="loading && !hasData" class="loading">
       <div class="spinner"></div>
-      <span>加载中…</span>
+      <span>{{ t('loading') }}</span>
     </div>
 
     <!-- Tab: 概览 -->
     <div v-if="activeTab === 'overview' && hasData">
+      <!-- Hero strip (always show, with 0 fallback) -->
+      <div class="hero-strip">
+        <div class="label">{{ t('monthLabel') }}</div>
+        <div class="month-text">{{ yearMonthText }}</div>
+        <div class="quick-stats">
+          <div class="qs">
+            <div class="qs-label">{{ t('income') }}</div>
+            <div class="qs-value">{{ formatMoney(stats.income) }}</div>
+          </div>
+          <div class="qs">
+            <div class="qs-label">{{ t('expense') }}</div>
+            <div class="qs-value">{{ formatMoney(stats.expense) }}</div>
+          </div>
+          <div class="qs">
+            <div class="qs-label">{{ t('profit') }}</div>
+            <div class="qs-value">{{ formatMoney(stats.profit) }}</div>
+          </div>
+        </div>
+      </div>
+
       <div class="summary-grid">
         <div class="summary-card income">
+          <div class="corner-deco"></div>
           <div class="summary-label">
             <span class="summary-icon income">↑</span>
-            营收 (Income)
+            {{ t('income') }} · Income
           </div>
           <div class="summary-value income">{{ formatMoney(stats.income) }}</div>
-          <div class="summary-meta">{{ stats.count ? incomeCount + ' 笔' : '本月无收入' }}</div>
+          <div class="summary-meta">{{ incomeCount + ' ' + t('count') }}</div>
         </div>
         <div class="summary-card expense">
+          <div class="corner-deco"></div>
           <div class="summary-label">
             <span class="summary-icon expense">↓</span>
-            支出 (Expense)
+            {{ t('expense') }} · Expense
           </div>
           <div class="summary-value expense">{{ formatMoney(stats.expense) }}</div>
-          <div class="summary-meta">{{ expenseCount + ' 笔' }}</div>
+          <div class="summary-meta">{{ expenseCount + ' ' + t('count') }}</div>
         </div>
         <div class="summary-card profit">
+          <div class="corner-deco"></div>
           <div class="summary-label">
             <span class="summary-icon profit">=</span>
-            盈利 (Profit)
+            {{ t('profit') }} · Profit
           </div>
           <div class="summary-value profit">{{ formatMoney(stats.profit) }}</div>
-          <div class="summary-meta">收入 - 支出</div>
+          <div class="summary-meta">{{ t('profitFormula') }}</div>
         </div>
       </div>
 
       <div class="charts-grid">
         <div class="chart-card">
-          <div class="chart-title">年度趋势 ({{ currentYear }})</div>
+          <div class="chart-title">
+            <span>{{ t('trendTitle') }}</span>
+            <span class="badge">{{ currentYear }}</span>
+          </div>
           <div class="chart-body tall" ref="trendChart"></div>
         </div>
         <div class="chart-card">
-          <div class="chart-title">本月分类</div>
+          <div class="chart-title">
+            <span>{{ t('pieTitle') }}</span>
+            <span class="badge">{{ yearMonthText }}</span>
+          </div>
           <div class="chart-body tall" ref="pieChart"></div>
         </div>
       </div>
 
       <div class="rank-list">
         <div class="chart-title">
-          <span>🏆 支出 Top {{ Math.min(5, topExpenseCategories.length) }}</span>
-          <span style="font-size:11px; font-weight:500; color:var(--text-tertiary);">{{ yearMonthText }}</span>
+          <span>🏆 {{ t('rankTitle') }} Top {{ Math.min(5, topExpenseCategories.length) }}</span>
+          <span class="badge">{{ yearMonthText }}</span>
         </div>
-        <div v-if="topExpenseCategories.length === 0" class="empty" style="padding:30px 0;">
-          <div class="empty-desc">本月暂无支出</div>
+        <div v-if="topExpenseCategories.length === 0" class="empty" style="padding:40px 0;">
+          <div class="empty-desc">{{ t('noExpense') }}</div>
         </div>
         <div v-for="(cat, idx) in topExpenseCategories" :key="cat.id" class="rank-item">
           <div class="rank-num">{{ idx+1 }}</div>
           <div class="rank-icon" :style="{background: cat.color + '20', color: cat.color}">{{ cat.icon || '📦' }}</div>
-          <div style="flex:1; min-width:0;">
+          <div class="rank-body">
             <div class="rank-name">{{ cat.name }}</div>
             <div class="rank-bar"><div class="rank-bar-fill" :style="{width: (cat.amount/topExpenseCategories[0].amount*100) + '%', background: cat.color}"></div></div>
           </div>
@@ -941,9 +1202,9 @@ body {
     <div v-if="activeTab === 'transactions' && hasData">
       <div v-if="groupedTransactions.length === 0" class="empty">
         <div class="empty-icon">📝</div>
-        <div class="empty-title">本月还没有记账</div>
-        <div class="empty-desc">点击右上角"记账"开始记录</div>
-        <button class="btn btn-primary" @click="openTxModal()">+ 记一笔</button>
+        <div class="empty-title">{{ t('noTx') }}</div>
+        <div class="empty-desc">{{ t('noTxDesc') }}</div>
+        <button class="btn btn-primary" @click="openTxModal()">+ {{ t('add') }}</button>
       </div>
       <div v-else class="tx-list">
         <div v-for="group in groupedTransactions" :key="group.date" class="tx-day-group">
@@ -960,7 +1221,7 @@ body {
             </div>
             <div class="tx-main">
               <div class="tx-desc">{{ tx.description || getCategory(tx.categoryId).name }}</div>
-              <div class="tx-cat-name">{{ getCategory(tx.categoryId).name }} · {{ getCategory(tx.categoryId).type === 'income' ? '收入' : '支出' }}</div>
+              <div class="tx-cat-name">{{ getCategory(tx.categoryId).name }} · {{ getCategory(tx.categoryId).type === 'income' ? t('income') : t('expense') }}</div>
             </div>
             <div class="tx-amount" :class="tx.type">{{ tx.type === 'income' ? '+' : '-' }}{{ formatMoney(tx.amount) }}</div>
           </div>
@@ -972,8 +1233,8 @@ body {
     <div v-if="activeTab === 'categories'">
       <div class="cat-section">
         <div class="cat-section-title">
-          <span><span class="pill income">收入</span> 类别</span>
-          <span class="badge">{{ incomeCategories.length }} 个</span>
+          <span><span class="pill income">{{ t('income') }}</span> {{ t('catSection') }}</span>
+          <span class="badge">{{ incomeCategories.length }} {{ t('items') }}</span>
         </div>
         <div class="cat-grid">
           <div v-for="cat in incomeCategories" :key="cat.id" class="cat-card" @click="openCatModal(cat)">
@@ -983,13 +1244,13 @@ body {
               <button class="btn-icon" @click.stop="deleteCategory(cat)" title="删除">🗑</button>
             </div>
           </div>
-          <div class="cat-add" @click="openCatModal(null, 'income')">+ 新增收入类别</div>
+          <button class="cat-add" @click="openCatModal(null, 'income')">+ {{ t('addIncomeCat') }}</button>
         </div>
       </div>
       <div class="cat-section">
         <div class="cat-section-title">
-          <span><span class="pill expense">支出</span> 类别</span>
-          <span class="badge">{{ expenseCategories.length }} 个</span>
+          <span><span class="pill expense">{{ t('expense') }}</span> {{ t('catSection') }}</span>
+          <span class="badge">{{ expenseCategories.length }} {{ t('items') }}</span>
         </div>
         <div class="cat-grid">
           <div v-for="cat in expenseCategories" :key="cat.id" class="cat-card" @click="openCatModal(cat)">
@@ -999,7 +1260,7 @@ body {
               <button class="btn-icon" @click.stop="deleteCategory(cat)" title="删除">🗑</button>
             </div>
           </div>
-          <div class="cat-add" @click="openCatModal(null, 'expense')">+ 新增支出类别</div>
+          <button class="cat-add" @click="openCatModal(null, 'expense')">+ {{ t('addExpenseCat') }}</button>
         </div>
       </div>
     </div>
@@ -1009,19 +1270,21 @@ body {
       <div class="report-year-switcher">
         <button v-for="y in availableYears" :key="y" class="year-btn" :class="{active: y === reportYear}" @click="reportYear = y; loadYearlyStats()">{{ y }}</button>
       </div>
-      <div class="chart-card" style="margin-bottom:16px;">
-        <div class="chart-title">年度汇总</div>
+      <div class="chart-card" style="margin-bottom:18px;">
+        <div class="chart-title">
+          <span>{{ t('yearlyTitle') }} {{ reportYear }}</span>
+        </div>
         <div class="chart-body tall" ref="yearlyChart"></div>
       </div>
       <div class="report-table">
         <table>
           <thead>
             <tr>
-              <th>月份</th>
-              <th>营收</th>
-              <th>支出</th>
-              <th>盈利</th>
-              <th>笔数</th>
+              <th>{{ t('month') }}</th>
+              <th>{{ t('income') }}</th>
+              <th>{{ t('expense') }}</th>
+              <th>{{ t('profit') }}</th>
+              <th>{{ t('count') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -1033,12 +1296,12 @@ body {
               <td>{{ m.count }}</td>
             </tr>
             <tr v-if="yearlyData.length === 0">
-              <td colspan="5" style="text-align:center; color:var(--text-tertiary); padding:30px;">该年份暂无数据</td>
+              <td colspan="5" style="text-align:center; color:var(--text-tertiary); padding:40px;">{{ t('noYearData') }}</td>
             </tr>
           </tbody>
           <tfoot v-if="yearlyData.length > 0">
             <tr>
-              <td>合计</td>
+              <td>{{ t('total') }}</td>
               <td style="color:var(--income);">{{ formatMoney(yearlyTotal.income) }}</td>
               <td style="color:var(--expense);">{{ formatMoney(yearlyTotal.expense) }}</td>
               <td :class="yearlyTotal.profit >= 0 ? 'profit-pos' : 'profit-neg'">{{ formatMoney(yearlyTotal.profit) }}</td>
@@ -1047,61 +1310,60 @@ body {
           </tfoot>
         </table>
       </div>
-      <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        <button class="btn btn-secondary" @click="exportCSV">📊 导出 CSV</button>
-        <button class="btn btn-secondary" @click="exportJSON">📥 导出 JSON</button>
-        <button class="btn btn-danger" @click="confirmClearAll" style="margin-left:auto;">⚠️ 清空所有数据</button>
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <button class="btn btn-secondary" @click="exportCSV">📊 {{ t('exportCSV') }}</button>
+        <button class="btn btn-secondary" @click="exportJSON">📥 {{ t('exportJSON') }}</button>
+        <button class="btn btn-danger" @click="confirmClearAll" style="margin-left:auto;">⚠️ {{ t('clearAll') }}</button>
       </div>
     </div>
   </div>
 
-  <!-- FAB (only on transactions tab) -->
-  <button v-if="activeTab === 'transactions'" class="fab" @click="openTxModal()" title="新增">+</button>
+  <button v-if="activeTab === 'transactions'" class="fab" @click="openTxModal()" :title="t('add')">+</button>
 
   <!-- ===== Transaction Modal ===== -->
   <div v-if="txModal.open" class="modal-overlay" @click.self="closeTxModal">
     <div class="modal">
       <div class="modal-header">
-        <div class="modal-title">{{ txModal.editing ? '编辑交易' : '记一笔' }}</div>
+        <div class="modal-title">{{ txModal.editing ? t('editTx') : t('addTx') }}</div>
         <button class="modal-close" @click="closeTxModal">×</button>
       </div>
       <div class="modal-body">
         <div class="form-group">
-          <label class="form-label">类型</label>
+          <label class="form-label">{{ t('type') }}</label>
           <div class="type-toggle">
-            <button :class="{active: txModal.form.type === 'expense'}" class="expense" @click="txModal.form.type = 'expense'; txModal.form.categoryId = ''">支出</button>
-            <button :class="{active: txModal.form.type === 'income'}" class="income" @click="txModal.form.type = 'income'; txModal.form.categoryId = ''">收入</button>
+            <button :class="{active: txModal.form.type === 'expense'}" class="expense" @click="txModal.form.type = 'expense'; txModal.form.categoryId = ''">{{ t('expense') }}</button>
+            <button :class="{active: txModal.form.type === 'income'}" class="income" @click="txModal.form.type = 'income'; txModal.form.categoryId = ''">{{ t('income') }}</button>
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">日期</label>
+            <label class="form-label">{{ t('date') }}</label>
             <input class="form-input" type="date" v-model="txModal.form.date" required>
           </div>
           <div class="form-group">
-            <label class="form-label">金额 (RM)</label>
+            <label class="form-label">{{ t('amount') }} (RM)</label>
             <input class="form-input" type="number" step="0.01" min="0" v-model.number="txModal.form.amount" placeholder="0.00" required>
           </div>
         </div>
         <div class="form-group">
-          <label class="form-label">类别</label>
+          <label class="form-label">{{ t('category') }}</label>
           <select class="form-select" v-model="txModal.form.categoryId" required>
-            <option value="" disabled>选择类别…</option>
+            <option value="" disabled>{{ t('selectCat') }}</option>
             <option v-for="cat in categoriesForType(txModal.form.type)" :key="cat.id" :value="cat.id">{{ cat.icon }} {{ cat.name }}</option>
           </select>
           <div v-if="categoriesForType(txModal.form.type).length === 0" class="form-hint">
-            还没有{{ txModal.form.type === 'income' ? '收入' : '支出' }}类别，<a href="#" @click.prevent="closeTxModal; activeTab='categories'" style="color:var(--accent);">去添加</a>
+            {{ t('noCatYet', {type: txModal.form.type === 'income' ? t('income') : t('expense')}) }} <a href="#" @click.prevent="closeTxModal; activeTab='categories'" style="color:var(--accent); font-weight:600;">{{ t('goAdd') }}</a>
           </div>
         </div>
         <div class="form-group">
-          <label class="form-label">备注 (选填)</label>
-          <input class="form-input" v-model="txModal.form.description" placeholder="如: 午餐 / 客户A首期" maxlength="80">
+          <label class="form-label">{{ t('note') }}</label>
+          <input class="form-input" v-model="txModal.form.description" :placeholder="t('notePh')" maxlength="80">
         </div>
       </div>
       <div class="modal-footer">
-        <button v-if="txModal.editing" class="btn btn-danger" @click="deleteTx" style="margin-right:auto;">删除</button>
-        <button class="btn btn-secondary" @click="closeTxModal">取消</button>
-        <button class="btn btn-primary" @click="saveTx" :disabled="!txModalValid">保存</button>
+        <button v-if="txModal.editing" class="btn btn-danger" @click="deleteTx" style="margin-right:auto;">{{ t('delete') }}</button>
+        <button class="btn btn-secondary" @click="closeTxModal">{{ t('cancel') }}</button>
+        <button class="btn btn-primary" @click="saveTx" :disabled="!txModalValid">{{ t('save') }}</button>
       </div>
     </div>
   </div>
@@ -1110,43 +1372,42 @@ body {
   <div v-if="catModal.open" class="modal-overlay" @click.self="closeCatModal">
     <div class="modal">
       <div class="modal-header">
-        <div class="modal-title">{{ catModal.editing ? '编辑类别' : '新增类别' }}</div>
+        <div class="modal-title">{{ catModal.editing ? t('editCat') : t('addCat') }}</div>
         <button class="modal-close" @click="closeCatModal">×</button>
       </div>
       <div class="modal-body">
         <div v-if="!catModal.editing" class="form-group">
-          <label class="form-label">类型</label>
+          <label class="form-label">{{ t('type') }}</label>
           <div class="type-toggle">
-            <button :class="{active: catModal.form.type === 'expense'}" class="expense" @click="catModal.form.type = 'expense'">支出</button>
-            <button :class="{active: catModal.form.type === 'income'}" class="income" @click="catModal.form.type = 'income'">收入</button>
+            <button :class="{active: catModal.form.type === 'expense'}" class="expense" @click="catModal.form.type = 'expense'">{{ t('expense') }}</button>
+            <button :class="{active: catModal.form.type === 'income'}" class="income" @click="catModal.form.type = 'income'">{{ t('income') }}</button>
           </div>
         </div>
         <div class="form-group">
-          <label class="form-label">名称</label>
-          <input class="form-input" v-model="catModal.form.name" placeholder="如: 薪水 / 租金" maxlength="20" required>
+          <label class="form-label">{{ t('name') }}</label>
+          <input class="form-input" v-model="catModal.form.name" :placeholder="t('namePh')" maxlength="20" required>
         </div>
         <div class="form-group">
-          <label class="form-label">图标 (Emoji)</label>
-          <input class="form-input" v-model="catModal.form.icon" placeholder="如: 💰" maxlength="2" style="font-size:18px; width:80px; text-align:center;">
-          <div class="icon-picker" style="margin-top:8px;">
-            <span v-for="emoji in emojiList" :key="emoji" class="icon-swatch" :class="{selected: catModal.form.icon === emoji}" @click="catModal.form.icon = emoji">{{ emoji }}</span>
+          <label class="form-label">{{ t('icon') }}</label>
+          <input class="form-input" v-model="catModal.form.icon" :placeholder="t('iconPh')" maxlength="2" style="font-size:20px; width:90px; text-align:center;">
+          <div class="icon-picker" style="margin-top:10px;">
+            <span v-for="emoji in iconList" :key="emoji" class="icon-swatch" :class="{selected: catModal.form.icon === emoji}" @click="catModal.form.icon = emoji">{{ emoji }}</span>
           </div>
         </div>
         <div class="form-group">
-          <label class="form-label">颜色</label>
+          <label class="form-label">{{ t('color') }}</label>
           <div class="color-picker">
             <span v-for="color in colorList" :key="color" class="color-swatch" :class="{selected: catModal.form.color === color}" :style="{background: color}" @click="catModal.form.color = color"></span>
           </div>
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" @click="closeCatModal">取消</button>
-        <button class="btn btn-primary" @click="saveCategory" :disabled="!catModal.form.name">保存</button>
+        <button class="btn btn-secondary" @click="closeCatModal">{{ t('cancel') }}</button>
+        <button class="btn btn-primary" @click="saveCategory" :disabled="!catModal.form.name">{{ t('save') }}</button>
       </div>
     </div>
   </div>
 
-  <!-- Toast -->
   <div v-if="toast.show" class="toast" :class="toast.type">
     <span>{{ toast.type === 'success' ? '✓' : toast.type === 'error' ? '✕' : 'ⓘ' }}</span>
     <span>{{ toast.message }}</span>
@@ -1157,12 +1418,164 @@ body {
 const { createApp, reactive, ref, computed, onMounted, watch, nextTick } = Vue;
 
 // ============================================================
-// GAS API 配置 — 部署后请替换为你的 GAS Web App URL
+// GAS API
 // ============================================================
 const API_BASE = 'https://script.google.com/macros/s/AKfycbz_TFplnykqcvhgdO7L8HsjDUgGr5jMrNv8Y8RF2cAo7njZFJhbe6QpxNWU3R9De0_LtQ/exec';
 
 // ============================================================
-// 工具
+// i18n (中英双语)
+// ============================================================
+const I18N = {
+  zh: {
+    title: 'Monthly Expenses',
+    subtitle: '简易记账',
+    monthLabel: '当前月份',
+    income: '营收',
+    expense: '支出',
+    profit: '盈利',
+    profitFormula: '收入 - 支出',
+    count: '笔',
+    items: '个',
+    month: '月份',
+    total: '合计',
+    monthShort: '月',
+    prevMonth: '上一月',
+    nextMonth: '下一月',
+    switchLang: '切换语言',
+    export: '导出',
+    add: '记账',
+    connWarning: '无法连接后端 (GAS) — 数据无法保存。请检查 GAS URL 是否正确部署。',
+    loading: '加载中…',
+    tabOverview: '概览',
+    tabTx: '明细',
+    tabCat: '类别',
+    tabReport: '报表',
+    trendTitle: '年度趋势',
+    pieTitle: '本月分类',
+    rankTitle: '支出',
+    noExpense: '本月暂无支出',
+    noTx: '本月还没有记账',
+    noTxDesc: '点击右上角"记账"开始记录',
+    noYearData: '该年份暂无数据',
+    addIncomeCat: '新增收入类别',
+    addExpenseCat: '新增支出类别',
+    catSection: '类别',
+    yearlyTitle: '年度汇总',
+    exportCSV: '导出 CSV',
+    exportJSON: '导出 JSON',
+    clearAll: '清空所有数据',
+    addTx: '记一笔',
+    editTx: '编辑交易',
+    editCat: '编辑类别',
+    addCat: '新增类别',
+    type: '类型',
+    date: '日期',
+    amount: '金额',
+    category: '类别',
+    selectCat: '选择类别…',
+    noCatYet: '还没有 {type} 类别,',
+    goAdd: '去添加',
+    note: '备注 (选填)',
+    notePh: '如: 午餐 / 客户A首期',
+    name: '名称',
+    namePh: '如: 薪水 / 租金',
+    icon: '图标 (Emoji)',
+    iconPh: '💰',
+    color: '颜色',
+    delete: '删除',
+    cancel: '取消',
+    save: '保存',
+    today: '今天',
+    yesterday: '昨天',
+    seedToast: '已创建默认类别',
+    defaultCatNames: {
+      cat_inc_salary: '薪水',
+      cat_inc_other: '其他收入',
+      cat_exp_rent: '租金',
+      cat_exp_meal: '伙食',
+      cat_exp_transport: '交通',
+      cat_exp_office: '文具',
+      cat_exp_utility: '水电',
+      cat_exp_salary: '员工薪资'
+    }
+  },
+  en: {
+    title: 'Monthly Expenses',
+    subtitle: 'Simple Bookkeeping',
+    monthLabel: 'Current Month',
+    income: 'Income',
+    expense: 'Expense',
+    profit: 'Profit',
+    profitFormula: 'Income − Expense',
+    count: 'items',
+    items: 'total',
+    month: 'Month',
+    total: 'Total',
+    monthShort: '',
+    prevMonth: 'Previous month',
+    nextMonth: 'Next month',
+    switchLang: 'Switch language',
+    export: 'Export',
+    add: 'Add',
+    connWarning: 'Cannot connect to backend (GAS). Data will not be saved. Please check the GAS URL.',
+    loading: 'Loading…',
+    tabOverview: 'Overview',
+    tabTx: 'Transactions',
+    tabCat: 'Categories',
+    tabReport: 'Reports',
+    trendTitle: 'Yearly Trend',
+    pieTitle: 'This Month',
+    rankTitle: 'Top Spending',
+    noExpense: 'No expenses this month',
+    noTx: 'No transactions this month',
+    noTxDesc: 'Click "Add" in the top right to start recording',
+    noYearData: 'No data for this year',
+    addIncomeCat: 'Add income category',
+    addExpenseCat: 'Add expense category',
+    catSection: 'Categories',
+    yearlyTitle: 'Yearly Summary',
+    exportCSV: 'Export CSV',
+    exportJSON: 'Export JSON',
+    clearAll: 'Clear All Data',
+    addTx: 'Add Transaction',
+    editTx: 'Edit Transaction',
+    editCat: 'Edit Category',
+    addCat: 'New Category',
+    type: 'Type',
+    date: 'Date',
+    amount: 'Amount',
+    category: 'Category',
+    selectCat: 'Select category…',
+    noCatYet: 'No {type} category yet,',
+    goAdd: 'add one',
+    note: 'Note (optional)',
+    notePh: 'e.g. Lunch / Customer A deposit',
+    name: 'Name',
+    namePh: 'e.g. Salary / Rent',
+    icon: 'Icon (Emoji)',
+    iconPh: '💰',
+    color: 'Color',
+    delete: 'Delete',
+    cancel: 'Cancel',
+    save: 'Save',
+    today: 'Today',
+    yesterday: 'Yesterday',
+    seedToast: 'Default categories created',
+    defaultCatNames: {
+      cat_inc_salary: 'Salary',
+      cat_inc_other: 'Other Income',
+      cat_exp_rent: 'Rent',
+      cat_exp_meal: 'Meals',
+      cat_exp_transport: 'Transport',
+      cat_exp_office: 'Office',
+      cat_exp_utility: 'Utilities',
+      cat_exp_salary: 'Staff Salary'
+    }
+  }
+};
+
+// ============================================================
+// Constants
 // ============================================================
 const COLOR_PRESETS = ['#FF3B30','#FF9500','#FFCC00','#34C759','#5AC8FA','#007AFF','#5856D6','#AF52DE','#FF2D55','#A2845E','#8E8E93','#30B0C7'];
 const ICON_PRESETS = ['💰','💵','💳','🏠','🚗','🍔','🛒','📚','✏️','⚡','📱','💼','📈','🏦','🎁','☕','🍕','✈️','🏥','💊','🛠️','📦','🎨','👕','🎓','💻','🖥️','📷','🎵','🎮'];
@@ -1170,6 +1583,7 @@ const ICON_PRESETS = ['💰','💵','💳','🏠','🚗','🍔','🛒','📚','�
 const STORAGE_KEYS = {
   month: 'me_current_month',
   tab: 'me_active_tab',
+  lang: 'me_lang',
   categories: 'me_cached_categories',
   transactions: 'me_cached_transactions'
 };
@@ -1179,17 +1593,7 @@ function formatMoney(n) {
   return 'RM ' + n.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function formatDate(iso) {
-  if (!iso) return '';
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return iso;
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${dd}`;
-}
-
-function formatDateText(iso) {
+function formatDateText(iso, lang) {
   if (!iso) return '';
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso;
@@ -1199,8 +1603,8 @@ function formatDateText(iso) {
   yesterday.setDate(yesterday.getDate() - 1);
   const target = new Date(d);
   target.setHours(0,0,0,0);
-  if (target.getTime() === today.getTime()) return '今天 · ' + iso;
-  if (target.getTime() === yesterday.getTime()) return '昨天 · ' + iso;
+  if (target.getTime() === today.getTime()) return (I18N[lang].today || 'Today') + ' · ' + iso;
+  if (target.getTime() === yesterday.getTime()) return (I18N[lang].yesterday || 'Yesterday') + ' · ' + iso;
   return iso;
 }
 
@@ -1224,13 +1628,23 @@ async function apiPost(action, body) {
 // ============================================================
 createApp({
   setup() {
-    // ----- State -----
+    // i18n
+    const i18n = reactive({ lang: localStorage.getItem(STORAGE_KEYS.lang) || 'zh' });
+    function t(key, vars) {
+      let s = I18N[i18n.lang][key] || key;
+      if (vars) Object.keys(vars).forEach(k => { s = s.replace('{' + k + '}', vars[k]); });
+      return s;
+    }
+    function toggleLang() {
+      i18n.lang = i18n.lang === 'zh' ? 'en' : 'zh';
+      localStorage.setItem(STORAGE_KEYS.lang, i18n.lang);
+    }
+
+    // State
     const apiChecked = ref(false);
     const connected = ref(true);
     const loading = ref(false);
     const activeTab = ref(localStorage.getItem(STORAGE_KEYS.tab) || 'overview');
-
-    // Default month: current
     const today = new Date();
     const defaultMonth = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0');
     const currentMonth = ref(localStorage.getItem(STORAGE_KEYS.month) || defaultMonth);
@@ -1243,11 +1657,9 @@ createApp({
     const incomeCount = computed(() => transactions.value.filter(t => t.type === 'income').length);
     const expenseCount = computed(() => transactions.value.filter(t => t.type === 'expense').length);
 
-    // Yearly data
     const reportYear = ref(today.getFullYear());
     const yearlyData = ref([]);
 
-    // Charts
     const trendChart = ref(null);
     const pieChart = ref(null);
     const yearlyChart = ref(null);
@@ -1255,11 +1667,9 @@ createApp({
     let pieChartInstance = null;
     let yearlyChartInstance = null;
 
-    // Modals
     const txModal = reactive({ open: false, editing: null, form: { type: 'expense', date: '', categoryId: '', amount: 0, description: '' } });
     const catModal = reactive({ open: false, editing: null, form: { type: 'expense', name: '', color: COLOR_PRESETS[5], icon: '📦' } });
 
-    // Toast
     const toast = reactive({ show: false, message: '', type: 'info' });
     let toastTimer = null;
     function showToast(msg, type = 'info', duration = 2200) {
@@ -1270,7 +1680,7 @@ createApp({
       toastTimer = setTimeout(() => { toast.show = false; }, duration);
     }
 
-    // ----- Computed -----
+    // Computed
     const colorList = computed(() => COLOR_PRESETS);
     const iconList = computed(() => ICON_PRESETS);
     const hasData = computed(() => categories.value || transactions.value);
@@ -1279,7 +1689,7 @@ createApp({
     const currentMonthNum = computed(() => Number(currentMonth.value.split('-')[1]));
     const yearMonthText = computed(() => {
       const [y, m] = currentMonth.value.split('-');
-      return `${y}年${Number(m)}月`;
+      return `${y} ${i18n.lang === 'en' ? '' : '年'}${Number(m)}${i18n.lang === 'en' ? '' : '月'}`;
     });
 
     const incomeCategories = computed(() => categories.value.filter(c => c.type === 'income'));
@@ -1298,7 +1708,7 @@ createApp({
       return Object.entries(byCat)
         .filter(([id, info]) => info.type === 'expense')
         .map(([id, info]) => {
-          const cat = categories.value.find(c => c.id === id) || { name: '未分类', color: '#8E8E93', icon: '📦' };
+          const cat = categories.value.find(c => c.id === id) || { name: i18n.lang === 'en' ? 'Uncategorized' : '未分类', color: '#8E8E93', icon: '📦' };
           return { id, name: cat.name, color: cat.color, icon: cat.icon, amount: info.amount, count: info.count };
         })
         .sort((a, b) => b.amount - a.amount)
@@ -1309,7 +1719,7 @@ createApp({
       const groups = {};
       transactions.value.forEach(tx => {
         const day = tx.date.slice(0, 10);
-        if (!groups[day]) groups[day] = { date: day, dateText: formatDateText(day), income: 0, expense: 0, items: [] };
+        if (!groups[day]) groups[day] = { date: day, dateText: formatDateText(day, i18n.lang), income: 0, expense: 0, items: [] };
         groups[day].items.push(tx);
         groups[day][tx.type] += tx.amount;
       });
@@ -1330,29 +1740,21 @@ createApp({
       return f.date && f.categoryId && f.amount > 0 && (f.type === 'income' || f.type === 'expense');
     });
 
-    // ----- Helpers -----
+    // Helpers
     function getCategory(id) {
-      return categories.value.find(c => c.id === id) || { name: '未分类', color: '#8E8E93', icon: '📦', type: 'expense' };
+      return categories.value.find(c => c.id === id) || { name: i18n.lang === 'en' ? 'Uncategorized' : '未分类', color: '#8E8E93', icon: '📦', type: 'expense' };
     }
     function categoriesForType(type) {
       return type === 'income' ? incomeCategories.value : expenseCategories.value;
     }
 
-    // ----- Data loading -----
+    // Data loading
     async function checkApi() {
       try {
         const r = await apiGet('ping');
-        if (r.success) {
-          connected.value = true;
-          apiChecked.value = true;
-        } else {
-          connected.value = false;
-          apiChecked.value = true;
-        }
-      } catch (e) {
-        connected.value = false;
-        apiChecked.value = true;
-      }
+        if (r.success) { connected.value = true; apiChecked.value = true; }
+        else { connected.value = false; apiChecked.value = true; }
+      } catch (e) { connected.value = false; apiChecked.value = true; }
     }
 
     async function loadCategories() {
@@ -1361,13 +1763,9 @@ createApp({
         if (r.success) {
           categories.value = r.categories || [];
           localStorage.setItem(STORAGE_KEYS.categories, JSON.stringify(categories.value));
-          // Seed defaults if empty
-          if (categories.value.length === 0) {
-            await seedDefaults();
-          }
+          if (categories.value.length === 0) await seedDefaults();
         }
       } catch (e) {
-        // Fallback to cache
         const cached = localStorage.getItem(STORAGE_KEYS.categories);
         if (cached) categories.value = JSON.parse(cached);
         else categories.value = [];
@@ -1385,7 +1783,6 @@ createApp({
           localStorage.setItem(STORAGE_KEYS.transactions + '_' + month, JSON.stringify(transactions.value));
         }
       } catch (e) {
-        // Fallback to cache
         const cached = localStorage.getItem(STORAGE_KEYS.transactions + '_' + month);
         if (cached) {
           transactions.value = JSON.parse(cached);
@@ -1426,34 +1823,32 @@ createApp({
           await nextTick();
           renderYearlyChart();
         }
-      } catch (e) {
-        yearlyData.value = [];
-      }
+      } catch (e) { yearlyData.value = []; }
     }
 
-    // ----- Seed default categories -----
     async function seedDefaults() {
+      const names = I18N[i18n.lang].defaultCatNames;
       const defaults = [
-        { id: 'cat_inc_salary', name: '薪水', type: 'income', color: '#34C759', icon: '💰' },
-        { id: 'cat_inc_other', name: '其他收入', type: 'income', color: '#5AC8FA', icon: '💵' },
-        { id: 'cat_exp_rent', name: '租金', type: 'expense', color: '#FF9500', icon: '🏠' },
-        { id: 'cat_exp_meal', name: '伙食', type: 'expense', color: '#FF3B30', icon: '🍔' },
-        { id: 'cat_exp_transport', name: '交通', type: 'expense', color: '#007AFF', icon: '🚗' },
-        { id: 'cat_exp_office', name: '文具', type: 'expense', color: '#5856D6', icon: '✏️' },
-        { id: 'cat_exp_utility', name: '水电', type: 'expense', color: '#FFCC00', icon: '⚡' },
-        { id: 'cat_exp_salary', name: '员工薪资', type: 'expense', color: '#AF52DE', icon: '👥' }
+        { id: 'cat_inc_salary', name: names.cat_inc_salary, type: 'income', color: '#34C759', icon: '💰' },
+        { id: 'cat_inc_other', name: names.cat_inc_other, type: 'income', color: '#5AC8FA', icon: '💵' },
+        { id: 'cat_exp_rent', name: names.cat_exp_rent, type: 'expense', color: '#FF9500', icon: '🏠' },
+        { id: 'cat_exp_meal', name: names.cat_exp_meal, type: 'expense', color: '#FF3B30', icon: '🍔' },
+        { id: 'cat_exp_transport', name: names.cat_exp_transport, type: 'expense', color: '#007AFF', icon: '🚗' },
+        { id: 'cat_exp_office', name: names.cat_exp_office, type: 'expense', color: '#5856D6', icon: '✏️' },
+        { id: 'cat_exp_utility', name: names.cat_exp_utility, type: 'expense', color: '#FFCC00', icon: '⚡' },
+        { id: 'cat_exp_salary', name: names.cat_exp_salary, type: 'expense', color: '#AF52DE', icon: '👥' }
       ];
       try {
         await apiPost('saveCategories', { categories: defaults });
         categories.value = defaults;
         localStorage.setItem(STORAGE_KEYS.categories, JSON.stringify(defaults));
-        showToast('已创建默认类别', 'success');
+        showToast(t('seedToast'), 'success');
       } catch (e) {
         categories.value = defaults;
       }
     }
 
-    // ----- Month navigation -----
+    // Month navigation
     function changeMonth(delta) {
       const [y, m] = currentMonth.value.split('-').map(Number);
       const d = new Date(y, m - 1 + delta, 1);
@@ -1467,7 +1862,7 @@ createApp({
       loadMonth(m);
     }
 
-    // ----- Charts -----
+    // Charts
     function renderCharts() {
       if (activeTab.value !== 'overview') return;
       renderTrendChart();
@@ -1476,70 +1871,58 @@ createApp({
     function renderTrendChart() {
       if (!trendChart.value) return;
       if (!trendChartInstance) trendChartInstance = echarts.init(trendChart.value);
-      // Build 12 months of current year
       const months = [];
       const incomes = [];
       const expenses = [];
       for (let i = 1; i <= 12; i++) {
         const m = currentYear.value + '-' + String(i).padStart(2, '0');
-        months.push(i + '月');
+        months.push(i + (i18n.lang === 'en' ? '' : '月'));
         const found = yearlyData.value.find(d => d.month === m);
-        if (found) {
-          incomes.push(found.income);
-          expenses.push(found.expense);
-        } else {
-          incomes.push(0);
-          expenses.push(0);
-        }
+        if (found) { incomes.push(found.income); expenses.push(found.expense); }
+        else { incomes.push(0); expenses.push(0); }
       }
       trendChartInstance.setOption({
-        grid: { top: 20, right: 16, bottom: 30, left: 50 },
+        grid: { top: 30, right: 16, bottom: 30, left: 60 },
         tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: function(params) {
           let s = params[0].axisValue + '<br>';
           params.forEach(p => { s += p.marker + p.seriesName + ': RM ' + p.value.toLocaleString('en-MY', {minimumFractionDigits: 2}) + '<br>'; });
           return s;
         }},
-        legend: { data: ['收入', '支出'], top: 0, right: 10, textStyle: { fontSize: 12 } },
-        xAxis: { type: 'category', data: months, axisLine: { lineStyle: { color: '#C7C7CC' } }, axisLabel: { color: '#6E6E73' } },
-        yAxis: { type: 'value', axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: 'rgba(60,60,67,0.08)' } }, axisLabel: { color: '#6E6E73', formatter: v => v >= 1000 ? (v/1000).toFixed(1) + 'k' : v } },
+        legend: { data: [t('income'), t('expense')], top: 0, right: 10, textStyle: { fontSize: 13 } },
+        xAxis: { type: 'category', data: months, axisLine: { lineStyle: { color: '#C7C7CC' } }, axisLabel: { color: '#6E6E73', fontSize: 12 } },
+        yAxis: { type: 'value', axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: 'rgba(60,60,67,0.08)' } }, axisLabel: { color: '#6E6E73', fontSize: 12, formatter: v => v >= 1000 ? (v/1000).toFixed(1) + 'k' : v } },
         series: [
-          { name: '收入', type: 'bar', data: incomes, itemStyle: { color: '#34C759', borderRadius: [4, 4, 0, 0] }, barMaxWidth: 16 },
-          { name: '支出', type: 'bar', data: expenses, itemStyle: { color: '#FF3B30', borderRadius: [4, 4, 0, 0] }, barMaxWidth: 16 }
+          { name: t('income'), type: 'bar', data: incomes, itemStyle: { color: '#34C759', borderRadius: [6, 6, 0, 0] }, barMaxWidth: 18 },
+          { name: t('expense'), type: 'bar', data: expenses, itemStyle: { color: '#FF3B30', borderRadius: [6, 6, 0, 0] }, barMaxWidth: 18 }
         ]
       });
     }
     function renderPieChart() {
       if (!pieChart.value) return;
       if (!pieChartInstance) pieChartInstance = echarts.init(pieChart.value);
-      const data = topExpenseCategories.value.map(c => ({
-        name: c.name, value: c.amount,
-        itemStyle: { color: c.color }
-      }));
-      const incomeTotal = Object.entries(stats.byCategory || {}).filter(([id, info]) => info.type === 'income').reduce((acc, [id, info]) => acc + info.amount, 0);
-      if (incomeTotal > 0) {
-        Object.entries(stats.byCategory).forEach(([id, info]) => {
-          if (info.type === 'income') {
-            const cat = getCategory(id);
-            data.push({ name: cat.name + ' (收)', value: info.amount, itemStyle: { color: cat.color, opacity: 0.6 } });
-          }
-        });
-      }
+      const data = topExpenseCategories.value.map(c => ({ name: c.name, value: c.amount, itemStyle: { color: c.color } }));
+      Object.entries(stats.byCategory || {}).forEach(([id, info]) => {
+        if (info.type === 'income' && info.amount > 0) {
+          const cat = getCategory(id);
+          data.push({ name: cat.name + (i18n.lang === 'en' ? ' (in)' : ' (收)'), value: info.amount, itemStyle: { color: cat.color, opacity: 0.6 } });
+        }
+      });
       if (data.length === 0) {
         pieChartInstance.clear();
         pieChartInstance.setOption({
-          graphic: { type: 'text', left: 'center', top: 'middle', style: { text: '暂无数据', fontSize: 14, fill: '#86868B' } }
+          graphic: { type: 'text', left: 'center', top: 'middle', style: { text: i18n.lang === 'en' ? 'No data' : '暂无数据', fontSize: 15, fill: '#86868B' } }
         });
         return;
       }
       pieChartInstance.setOption({
-        tooltip: { trigger: 'item', formatter: '{b}<br>RM {c} ({d}%)' },
-        legend: { orient: 'vertical', right: 10, top: 'center', textStyle: { fontSize: 12, color: '#1D1D1F' } },
+        tooltip: { trigger: 'item', formatter: '{b}<br>RM {c} ({d}%)', textStyle: { fontSize: 13 } },
+        legend: { orient: 'vertical', right: 10, top: 'center', textStyle: { fontSize: 13, color: '#1D1D1F' } },
         series: [{
           type: 'pie',
-          radius: ['45%', '70%'],
+          radius: ['45%', '72%'],
           center: ['38%', '50%'],
           avoidLabelOverlap: true,
-          itemStyle: { borderRadius: 4, borderColor: '#fff', borderWidth: 2 },
+          itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 3 },
           label: { show: false },
           labelLine: { show: false },
           data: data
@@ -1551,39 +1934,27 @@ createApp({
       if (!yearlyChartInstance) yearlyChartInstance = echarts.init(yearlyChart.value);
       const months = yearlyData.value.map(d => d.month);
       yearlyChartInstance.setOption({
-        grid: { top: 30, right: 16, bottom: 30, left: 50 },
+        grid: { top: 40, right: 16, bottom: 30, left: 60 },
         tooltip: { trigger: 'axis' },
-        legend: { data: ['收入', '支出', '盈利'], top: 0, right: 10, textStyle: { fontSize: 12 } },
-        xAxis: { type: 'category', data: months, axisLine: { lineStyle: { color: '#C7C7CC' } }, axisLabel: { color: '#6E6E73' } },
-        yAxis: { type: 'value', axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: 'rgba(60,60,67,0.08)' } }, axisLabel: { color: '#6E6E73', formatter: v => v >= 1000 ? (v/1000).toFixed(1) + 'k' : v } },
+        legend: { data: [t('income'), t('expense'), t('profit')], top: 0, right: 10, textStyle: { fontSize: 13 } },
+        xAxis: { type: 'category', data: months, axisLine: { lineStyle: { color: '#C7C7CC' } }, axisLabel: { color: '#6E6E73', fontSize: 12 } },
+        yAxis: { type: 'value', axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: 'rgba(60,60,67,0.08)' } }, axisLabel: { color: '#6E6E73', fontSize: 12, formatter: v => v >= 1000 ? (v/1000).toFixed(1) + 'k' : v } },
         series: [
-          { name: '收入', type: 'line', smooth: true, data: yearlyData.value.map(d => d.income), itemStyle: { color: '#34C759' }, areaStyle: { color: 'rgba(52,199,89,0.1)' } },
-          { name: '支出', type: 'line', smooth: true, data: yearlyData.value.map(d => d.expense), itemStyle: { color: '#FF3B30' }, areaStyle: { color: 'rgba(255,59,48,0.1)' } },
-          { name: '盈利', type: 'line', smooth: true, data: yearlyData.value.map(d => d.profit), itemStyle: { color: '#007AFF' } }
+          { name: t('income'), type: 'line', smooth: true, data: yearlyData.value.map(d => d.income), itemStyle: { color: '#34C759' }, lineStyle: { width: 3 }, areaStyle: { color: 'rgba(52,199,89,0.12)' } },
+          { name: t('expense'), type: 'line', smooth: true, data: yearlyData.value.map(d => d.expense), itemStyle: { color: '#FF3B30' }, lineStyle: { width: 3 }, areaStyle: { color: 'rgba(255,59,48,0.12)' } },
+          { name: t('profit'), type: 'line', smooth: true, data: yearlyData.value.map(d => d.profit), itemStyle: { color: '#007AFF' }, lineStyle: { width: 3 } }
         ]
       });
     }
 
-    // ----- Transaction modal -----
+    // Transaction modal
     function openTxModal(tx) {
       if (tx) {
         txModal.editing = tx;
-        txModal.form = {
-          type: tx.type,
-          date: tx.date,
-          categoryId: tx.categoryId,
-          amount: tx.amount,
-          description: tx.description || ''
-        };
+        txModal.form = { type: tx.type, date: tx.date, categoryId: tx.categoryId, amount: tx.amount, description: tx.description || '' };
       } else {
         txModal.editing = null;
-        txModal.form = {
-          type: 'expense',
-          date: currentMonth.value + '-' + String(today.getDate()).padStart(2, '0'),
-          categoryId: '',
-          amount: 0,
-          description: ''
-        };
+        txModal.form = { type: 'expense', date: currentMonth.value + '-' + String(today.getDate()).padStart(2, '0'), categoryId: '', amount: 0, description: '' };
       }
       txModal.open = true;
     }
@@ -1593,46 +1964,25 @@ createApp({
       try {
         if (txModal.editing) {
           const r = await apiPost('updateTransaction', { id: txModal.editing.id, ...txModal.form });
-          if (r.success) {
-            showToast('已更新', 'success');
-            closeTxModal();
-            await loadMonth(currentMonth.value);
-            if (activeTab.value === 'reports') loadYearlyStats();
-          } else {
-            showToast('更新失败: ' + r.message, 'error');
-          }
+          if (r.success) { showToast(i18n.lang === 'en' ? 'Updated' : '已更新', 'success'); closeTxModal(); await loadMonth(currentMonth.value); if (activeTab.value === 'reports') loadYearlyStats(); }
+          else showToast((i18n.lang === 'en' ? 'Update failed: ' : '更新失败: ') + r.message, 'error');
         } else {
           const r = await apiPost('addTransaction', txModal.form);
-          if (r.success) {
-            showToast('已记录', 'success');
-            closeTxModal();
-            await loadMonth(currentMonth.value);
-            if (activeTab.value === 'reports') loadYearlyStats();
-          } else {
-            showToast('保存失败: ' + r.message, 'error');
-          }
+          if (r.success) { showToast(i18n.lang === 'en' ? 'Saved' : '已记录', 'success'); closeTxModal(); await loadMonth(currentMonth.value); if (activeTab.value === 'reports') loadYearlyStats(); }
+          else showToast((i18n.lang === 'en' ? 'Save failed: ' : '保存失败: ') + r.message, 'error');
         }
-      } catch (e) {
-        showToast('网络错误: ' + e.message, 'error');
-      }
+      } catch (e) { showToast((i18n.lang === 'en' ? 'Network error: ' : '网络错误: ') + e.message, 'error'); }
     }
     async function deleteTx() {
       if (!txModal.editing) return;
-      if (!confirm('确定要删除这条交易吗?')) return;
+      if (!confirm(i18n.lang === 'en' ? 'Delete this transaction?' : '确定要删除这条交易吗?')) return;
       try {
         const r = await apiPost('deleteTransaction', { id: txModal.editing.id });
-        if (r.success) {
-          showToast('已删除', 'success');
-          closeTxModal();
-          await loadMonth(currentMonth.value);
-          if (activeTab.value === 'reports') loadYearlyStats();
-        }
-      } catch (e) {
-        showToast('删除失败', 'error');
-      }
+        if (r.success) { showToast(i18n.lang === 'en' ? 'Deleted' : '已删除', 'success'); closeTxModal(); await loadMonth(currentMonth.value); if (activeTab.value === 'reports') loadYearlyStats(); }
+      } catch (e) { showToast(i18n.lang === 'en' ? 'Delete failed' : '删除失败', 'error'); }
     }
 
-    // ----- Category modal -----
+    // Category modal
     function openCatModal(cat, type) {
       if (cat) {
         catModal.editing = cat;
@@ -1655,41 +2005,26 @@ createApp({
       }
       try {
         const r = await apiPost('saveCategories', { categories: newCats });
-        if (r.success) {
-          categories.value = newCats;
-          localStorage.setItem(STORAGE_KEYS.categories, JSON.stringify(newCats));
-          showToast('已保存', 'success');
-          closeCatModal();
-        } else {
-          showToast('保存失败: ' + r.message, 'error');
-        }
-      } catch (e) {
-        showToast('网络错误', 'error');
-      }
+        if (r.success) { categories.value = newCats; localStorage.setItem(STORAGE_KEYS.categories, JSON.stringify(newCats)); showToast(i18n.lang === 'en' ? 'Saved' : '已保存', 'success'); closeCatModal(); }
+        else showToast((i18n.lang === 'en' ? 'Save failed: ' : '保存失败: ') + r.message, 'error');
+      } catch (e) { showToast(i18n.lang === 'en' ? 'Network error' : '网络错误', 'error'); }
     }
     async function deleteCategory(cat) {
-      // Check if in use
       const inUse = transactions.value.some(t => t.categoryId === cat.id);
+      const uncat = i18n.lang === 'en' ? 'Uncategorized' : '未分类';
       if (inUse) {
-        if (!confirm(`类别「${cat.name}」正在被本月交易使用,确定要删除吗?\n(已使用的交易会显示为"未分类")`)) return;
+        if (!confirm((i18n.lang === 'en' ? `Category "${cat.name}" is in use. Delete anyway?\n(Used transactions will show as "${uncat}")` : `类别「${cat.name}」正在被本月交易使用,确定要删除吗?\n(已使用的交易会显示为"未分类")`))) return;
       } else {
-        if (!confirm(`确定删除类别「${cat.name}」?`)) return;
+        if (!confirm((i18n.lang === 'en' ? `Delete category "${cat.name}"?` : `确定删除类别「${cat.name}」?`))) return;
       }
       const newCats = categories.value.filter(c => c.id !== cat.id);
       try {
         const r = await apiPost('saveCategories', { categories: newCats });
-        if (r.success) {
-          categories.value = newCats;
-          localStorage.setItem(STORAGE_KEYS.categories, JSON.stringify(newCats));
-          showToast('已删除', 'success');
-          recomputeStats();
-        }
-      } catch (e) {
-        showToast('删除失败', 'error');
-      }
+        if (r.success) { categories.value = newCats; localStorage.setItem(STORAGE_KEYS.categories, JSON.stringify(newCats)); showToast(i18n.lang === 'en' ? 'Deleted' : '已删除', 'success'); recomputeStats(); }
+      } catch (e) { showToast(i18n.lang === 'en' ? 'Delete failed' : '删除失败', 'error'); }
     }
 
-    // ----- Export -----
+    // Export
     function downloadFile(filename, content, mime) {
       const blob = new Blob([content], { type: mime });
       const url = URL.createObjectURL(blob);
@@ -1700,69 +2035,49 @@ createApp({
       URL.revokeObjectURL(url);
     }
     function exportJSON() {
-      const data = {
-        exportedAt: new Date().toISOString(),
-        version: '1.0',
-        categories: categories.value,
-        transactions: transactions.value
-      };
+      const data = { exportedAt: new Date().toISOString(), version: '1.0', categories: categories.value, transactions: transactions.value };
       downloadFile('monthly-expenses-' + currentMonth.value + '.json', JSON.stringify(data, null, 2), 'application/json');
-      showToast('已导出 JSON', 'success');
+      showToast(i18n.lang === 'en' ? 'JSON exported' : '已导出 JSON', 'success');
     }
     function exportCSV() {
-      // Get all transactions (across all months)
       apiGet('getAllTransactions').then(r => {
-        if (!r.success) { showToast('导出失败', 'error'); return; }
+        if (!r.success) { showToast(i18n.lang === 'en' ? 'Export failed' : '导出失败', 'error'); return; }
         const txs = r.transactions || [];
-        const header = ['日期', '类型', '类别', '金额(RM)', '备注'];
+        const header = [i18n.lang === 'en' ? 'Date' : '日期', i18n.lang === 'en' ? 'Type' : '类型', i18n.lang === 'en' ? 'Category' : '类别', i18n.lang === 'en' ? 'Amount (RM)' : '金额(RM)', i18n.lang === 'en' ? 'Note' : '备注'];
         const rows = txs.map(tx => {
           const cat = getCategory(tx.categoryId);
-          return [tx.date, tx.type === 'income' ? '收入' : '支出', cat.name, tx.amount.toFixed(2), (tx.description || '').replace(/"/g, '""')];
+          return [tx.date, tx.type === 'income' ? (i18n.lang === 'en' ? 'Income' : '收入') : (i18n.lang === 'en' ? 'Expense' : '支出'), cat.name, tx.amount.toFixed(2), (tx.description || '').replace(/"/g, '""')];
         });
         const csv = [header, ...rows].map(row => row.map(c => /[",\n]/.test(c) ? `"${c}"` : c).join(',')).join('\n');
         downloadFile('monthly-expenses-' + reportYear.value + '.csv', '\uFEFF' + csv, 'text/csv;charset=utf-8');
-        showToast('已导出 CSV', 'success');
+        showToast(i18n.lang === 'en' ? 'CSV exported' : '已导出 CSV', 'success');
       });
     }
     async function confirmClearAll() {
-      if (!confirm('⚠️ 确定要清空所有数据吗?\n所有类别和交易记录将被永久删除,不可恢复!')) return;
-      if (!confirm('再次确认: 这将删除所有数据,无法恢复!')) return;
+      if (!confirm(i18n.lang === 'en' ? '⚠️ Clear all data? This cannot be undone!' : '⚠️ 确定要清空所有数据吗?\n所有类别和交易记录将被永久删除,不可恢复!')) return;
+      if (!confirm(i18n.lang === 'en' ? 'Confirm again: this will delete ALL data!' : '再次确认: 这将删除所有数据,无法恢复!')) return;
       try {
         const r = await apiGet('clearAll');
         if (r.success) {
-          categories.value = [];
-          transactions.value = [];
-          yearlyData.value = [];
-          showToast('已清空所有数据', 'success');
-          await loadCategories();
-          await loadMonth(currentMonth.value);
+          categories.value = []; transactions.value = []; yearlyData.value = [];
+          showToast(i18n.lang === 'en' ? 'All data cleared' : '已清空所有数据', 'success');
+          await loadCategories(); await loadMonth(currentMonth.value);
           if (activeTab.value === 'reports') loadYearlyStats();
         }
-      } catch (e) {
-        showToast('清空失败', 'error');
-      }
+      } catch (e) { showToast(i18n.lang === 'en' ? 'Clear failed' : '清空失败', 'error'); }
     }
 
-    // ----- Watchers -----
+    // Watchers
     watch(activeTab, async (v) => {
       localStorage.setItem(STORAGE_KEYS.tab, v);
       if (v === 'overview') {
-        if (yearlyData.value.length === 0) {
-          await loadYearlyStats();
-        } else {
-          await nextTick();
-          renderCharts();
-        }
-      } else if (v === 'reports') {
-        loadYearlyStats();
-      }
+        if (yearlyData.value.length === 0) await loadYearlyStats();
+        else { await nextTick(); renderCharts(); }
+      } else if (v === 'reports') loadYearlyStats();
     });
+    watch(currentMonth, () => { if (activeTab.value === 'reports') loadYearlyStats(); });
 
-    watch(currentMonth, () => {
-      if (activeTab.value === 'reports') loadYearlyStats();
-    });
-
-    // ----- Keyboard shortcuts -----
+    // Keyboard
     function onKey(e) {
       if (txModal.open || catModal.open) return;
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
@@ -1775,7 +2090,6 @@ createApp({
       else if (e.key === '4') { activeTab.value = 'reports'; }
     }
 
-    // ----- Lifecycle -----
     onMounted(async () => {
       window.addEventListener('keydown', onKey);
       window.addEventListener('resize', () => {
@@ -1788,27 +2102,20 @@ createApp({
         await loadCategories();
         await loadMonth(currentMonth.value);
         if (activeTab.value === 'reports') loadYearlyStats();
-        // 预热年度数据
         apiGet('getYearlyStats', { year: currentYear.value }).then(r => {
-          if (r.success) {
-            yearlyData.value = r.months || [];
-            if (activeTab.value === 'overview') renderCharts();
-          }
+          if (r.success) { yearlyData.value = r.months || []; if (activeTab.value === 'overview') renderCharts(); }
         });
       } else {
-        // 即使没连接也显示本地缓存
         const cached = localStorage.getItem(STORAGE_KEYS.categories);
         if (cached) categories.value = JSON.parse(cached);
         else categories.value = [];
         const txCached = localStorage.getItem(STORAGE_KEYS.transactions + '_' + currentMonth.value);
-        if (txCached) {
-          transactions.value = JSON.parse(txCached);
-          recomputeStats();
-        }
+        if (txCached) { transactions.value = JSON.parse(txCached); recomputeStats(); }
       }
     });
 
     return {
+      i18n, t, toggleLang,
       apiChecked, connected, loading, activeTab,
       currentMonth, currentYear, currentMonthNum, monthPickerOpen, yearOffset,
       yearMonthText, changeMonth, goToMonth,
@@ -1820,7 +2127,7 @@ createApp({
       toast,
       openTxModal, closeTxModal, saveTx, deleteTx,
       openCatModal, closeCatModal, saveCategory, deleteCategory,
-      formatMoney, formatDate, formatDateText,
+      formatMoney, formatDateText,
       exportJSON, exportCSV, confirmClearAll,
       loadYearlyStats
     };
