@@ -711,10 +711,9 @@ body {
             </div>
             <div class="acc-detail">
               <div v-if="acc.type === 'company' && acc.regNo" class="acc-detail-row"><span class="acc-detail-key">{{ t('regNo') }}:</span><span>{{ acc.regNo }}</span></div>
-              <div v-if="acc.type === 'company' && acc.address" class="acc-detail-row"><span class="acc-detail-key">{{ t('address') }}:</span><span>{{ acc.address }}</span></div>
+              <div v-if="(acc.phones && acc.phones.length)" class="acc-detail-row"><span class="acc-detail-key">📞</span><span>{{ acc.phones.join(' · ') }}</span></div>
+              <div v-if="(acc.addresses && acc.addresses.length)" class="acc-detail-row"><span class="acc-detail-key">📍</span><span>{{ acc.addresses.join(' / ') }}</span></div>
               <div v-if="acc.type === 'personal' && acc.ic" class="acc-detail-row"><span class="acc-detail-key">{{ t('ic') }}:</span><span>{{ acc.ic }}</span></div>
-              <div v-if="acc.type === 'personal' && acc.phone" class="acc-detail-row"><span class="acc-detail-key">{{ t('phone') }}:</span><span>{{ acc.phone }}</span></div>
-              <div v-if="acc.type === 'personal' && acc.address" class="acc-detail-row"><span class="acc-detail-key">{{ t('address') }}:</span><span>{{ acc.address }}</span></div>
               <div v-if="acc.description" class="acc-detail-row"><span class="acc-detail-key">{{ t('note') }}:</span><span>{{ acc.description }}</span></div>
             </div>
           </div>
@@ -801,12 +800,40 @@ body {
         </div>
         <div class="form-group">
           <label class="form-label">{{ t('account') }} *</label>
-          <select class="form-select" v-model="txModal.form.accountId">
-            <option value="">{{ t('selectAcc') }}</option>
-            <option v-for="acc in accounts" :key="acc.id" :value="acc.id">{{ acc.code }} · {{ acc.name }} ({{ t(acc.type) }})</option>
-          </select>
-          <div v-if="accounts.length === 0" class="form-hint">
-            {{ t('noAccYet') }} <a href="#" @click.prevent="closeTxModal; activeTab='accounts'" style="color:var(--accent); font-weight:600;">{{ t('goAdd') }}</a>
+          <div v-if="!txModal.form.accountId">
+            <input class="form-input" v-model="txModal.form.accSearch" @input="searchAccount" @focus="txModal.form.accShowResults = true" :placeholder="t('accSearchPh')" style="font-family: 'SF Mono', Monaco, monospace;">
+            <div v-if="txModal.form.accShowResults && txModal.form.accSearch" style="margin-top:6px; max-height:240px; overflow-y:auto; border:1px solid var(--border); border-radius:var(--radius-md); background:var(--bg-elevated); box-shadow:var(--shadow-sm);">
+              <div v-if="accSearchResults.length === 0" style="padding:14px; color:var(--text-tertiary); font-size:13px;">{{ t('noMatch') }}</div>
+              <div v-for="acc in accSearchResults" :key="acc.id" @click="selectTxAccount(acc)" style="padding:10px 14px; border-bottom:1px solid var(--separator); cursor:pointer; transition:background 0.12s;" @mouseover="$event.currentTarget.style.background='rgba(0,0,0,0.04)'" @mouseout="$event.currentTarget.style.background='transparent'">
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+                  <span class="pill" :class="acc.type">{{ t(acc.type) }}</span>
+                  <span style="font-family:'SF Mono',monospace; font-weight:700; font-size:13px; color:var(--text);">{{ acc.code }}</span>
+                  <span style="font-weight:600; font-size:14px;">{{ acc.name }}</span>
+                </div>
+                <div v-if="(acc.phones && acc.phones.length) || (acc.addresses && acc.addresses.length)" style="font-size:11.5px; color:var(--text-tertiary); margin-left:8px;">
+                  <span v-if="acc.phones && acc.phones.length">📞 {{ acc.phones.join(' · ') }}</span>
+                  <span v-if="acc.phones && acc.phones.length && acc.addresses && acc.addresses.length"> · </span>
+                  <span v-if="acc.addresses && acc.addresses.length">📍 {{ acc.addresses[0] }}</span>
+                </div>
+              </div>
+            </div>
+            <div v-if="accounts.length === 0" class="form-hint">
+              {{ t('noAccYet') }} <a href="#" @click.prevent="closeTxModal; activeTab='accounts'" style="color:var(--accent); font-weight:600;">{{ t('goAdd') }}</a>
+            </div>
+          </div>
+          <div v-else style="background:var(--accent-soft); border:1px solid var(--accent); border-radius:var(--radius-md); padding:12px 14px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span class="pill" :class="getAccount(txModal.form.accountId).type">{{ t(getAccount(txModal.form.accountId).type) }}</span>
+                <span style="font-family:'SF Mono',monospace; font-weight:700; font-size:14px; color:var(--accent);">{{ getAccount(txModal.form.accountId).code }}</span>
+                <span style="font-weight:600; font-size:14px;">{{ getAccount(txModal.form.accountId).name }}</span>
+              </div>
+              <button class="btn-icon" @click="txModal.form.accountId = ''; txModal.form.accSearch = ''" :title="t('changeAcc')">×</button>
+            </div>
+            <div v-if="(getAccount(txModal.form.accountId).phones && getAccount(txModal.form.accountId).phones.length) || (getAccount(txModal.form.accountId).addresses && getAccount(txModal.form.accountId).addresses.length)" style="font-size:12px; color:var(--text-secondary); margin-left:8px;">
+              <div v-if="getAccount(txModal.form.accountId).phones && getAccount(txModal.form.accountId).phones.length">📞 {{ getAccount(txModal.form.accountId).phones.join(' · ') }}</div>
+              <div v-if="getAccount(txModal.form.accountId).addresses && getAccount(txModal.form.accountId).addresses.length">📍 {{ getAccount(txModal.form.accountId).addresses[0] }}</div>
+            </div>
           </div>
         </div>
         <div class="form-group">
@@ -821,7 +848,7 @@ body {
         </div>
         <div class="form-group">
           <label class="form-label">{{ t('note') }}</label>
-          <input class="form-input" v-model="txModal.form.description" :placeholder="t('notePh')" maxlength="80">
+          <textarea class="form-textarea" v-model="txModal.form.description" :placeholder="t('notePh')" maxlength="500" rows="3"></textarea>
         </div>
       </div>
       <div class="modal-footer">
@@ -878,7 +905,7 @@ body {
     </div>
   </div>
 
-  <!-- ===== Account Modal (v1.2 新增) ===== -->
+  <!-- ===== Account Modal (v1.3 重构: 多电话/地址 + 编码分两段) ===== -->
   <div v-if="accModal.open" class="modal-overlay" @click.self="closeAccModal">
     <div class="modal">
       <div class="modal-header">
@@ -893,45 +920,46 @@ body {
             <button :class="{active: accModal.form.type === 'personal'}" class="personal" @click="accModal.form.type = 'personal'">{{ t('personal') }}</button>
           </div>
         </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">{{ t('code') }} *</label>
-            <input class="form-input" v-model="accModal.form.code" placeholder="4000/A01" maxlength="20" required style="font-family: 'SF Mono', Monaco, monospace;">
+        <div class="form-group">
+          <label class="form-label">{{ t('code') }} *</label>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <input class="form-input" v-model="accModal.form.codeFirst" :placeholder="t('codePh')" maxlength="4" required style="font-family: 'SF Mono', Monaco, monospace; flex:1; text-align:center;">
+            <span style="font-size:18px; color:var(--text-tertiary); font-weight:600;">/</span>
+            <input class="form-input" v-model="accModal.form.codeSecond" placeholder="A01" maxlength="3" required style="font-family: 'SF Mono', Monaco, monospace; flex:1; text-align:center;">
           </div>
-          <div class="form-group">
-            <label class="form-label">{{ t('name') }} *</label>
-            <input class="form-input" v-model="accModal.form.name" :placeholder="accModal.form.type === 'company' ? t('accNameCoPh') : t('accNamePePh')" maxlength="40" required>
-          </div>
+          <div class="form-hint">{{ t('codeFirst') }} · {{ t('codeSecond') }} (例: 3000/A02 · 5000/C07 · 0000/000)</div>
         </div>
-        <template v-if="accModal.form.type === 'company'">
-          <div class="form-group">
-            <label class="form-label">{{ t('regNo') }}</label>
-            <input class="form-input" v-model="accModal.form.regNo" placeholder="202001012345 (1234567-X)" maxlength="40">
+        <div class="form-group">
+          <label class="form-label">{{ t('name') }} *</label>
+          <input class="form-input" v-model="accModal.form.name" :placeholder="accModal.form.type === 'company' ? t('accNameCoPh') : t('accNamePePh')" maxlength="40" required>
+        </div>
+        <div v-if="accModal.form.type === 'company'" class="form-group">
+          <label class="form-label">{{ t('regNo') }}</label>
+          <input class="form-input" v-model="accModal.form.regNo" placeholder="202001012345 (1234567-X)" maxlength="40">
+        </div>
+        <div v-if="accModal.form.type === 'personal'" class="form-group">
+          <label class="form-label">{{ t('ic') }}</label>
+          <input class="form-input" v-model="accModal.form.ic" placeholder="900101-14-1234" maxlength="20">
+        </div>
+        <div class="form-group">
+          <label class="form-label">{{ t('phone') }}</label>
+          <div v-for="(p, i) in accModal.form.phones" :key="'phone-'+i" style="display:flex; gap:6px; margin-bottom:6px;">
+            <input class="form-input" v-model="accModal.form.phones[i]" placeholder="012-3456789" maxlength="20" style="flex:1;">
+            <button v-if="accModal.form.phones.length > 1" class="btn-icon" @click="removeAccPhone(i)" title="删除">×</button>
           </div>
-          <div class="form-group">
-            <label class="form-label">{{ t('address') }}</label>
-            <textarea class="form-textarea" v-model="accModal.form.address" :placeholder="t('addressPh')" maxlength="200" rows="2"></textarea>
+          <button class="btn btn-secondary btn-sm" @click="addAccPhone">{{ t('phoneAdd') }}</button>
+        </div>
+        <div class="form-group">
+          <label class="form-label">{{ t('address') }}</label>
+          <div v-for="(a, i) in accModal.form.addresses" :key="'addr-'+i" style="margin-bottom:6px;">
+            <textarea class="form-textarea" v-model="accModal.form.addresses[i]" :placeholder="t('addressPh')" maxlength="200" rows="2" style="display:inline-block; width:calc(100% - 38px); vertical-align:middle;"></textarea>
+            <button v-if="accModal.form.addresses.length > 1" class="btn-icon" @click="removeAccAddress(i)" title="删除" style="vertical-align:top;">×</button>
           </div>
-        </template>
-        <template v-else>
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">{{ t('ic') }}</label>
-              <input class="form-input" v-model="accModal.form.ic" placeholder="900101-14-1234" maxlength="20">
-            </div>
-            <div class="form-group">
-              <label class="form-label">{{ t('phone') }}</label>
-              <input class="form-input" v-model="accModal.form.phone" placeholder="012-3456789" maxlength="20">
-            </div>
-          </div>
-          <div class="form-group">
-            <label class="form-label">{{ t('address') }}</label>
-            <textarea class="form-textarea" v-model="accModal.form.address" :placeholder="t('addressPh')" maxlength="200" rows="2"></textarea>
-          </div>
-        </template>
+          <button class="btn btn-secondary btn-sm" @click="addAccAddress">{{ t('addressAdd') }}</button>
+        </div>
         <div class="form-group">
           <label class="form-label">{{ t('note') }}</label>
-          <input class="form-input" v-model="accModal.form.description" :placeholder="t('accNotePh')" maxlength="120">
+          <textarea class="form-textarea" v-model="accModal.form.description" :placeholder="t('accNotePh')" maxlength="500" rows="3"></textarea>
         </div>
       </div>
       <div class="modal-footer">
@@ -986,8 +1014,10 @@ const I18N = {
     namePh: '如: 薪水 / 租金', accNameCoPh: '如: ABC Sdn Bhd', accNamePePh: '如: 张三',
     icon: '图标 (Emoji)', iconPh: '💰', color: '颜色',
     code: '账户编码', regNo: '注册号', ic: 'IC', phone: '电话', address: '地址',
-    addressPh: '街道, 城市, 邮递区号',
-    accNotePh: '可选备注',
+    addressPh: '街道, 城市, 邮递区号', accNotePh: '可选备注',
+    codeFirst: '前缀 (4位)', codeSecond: '后缀 (3位)', codePh: '3000',
+    phoneAdd: '+ 添加电话', addressAdd: '+ 添加地址',
+    accSearchPh: '输入编码或公司名搜索…', noMatch: '无匹配账户', selectedAcc: '已选', changeAcc: '更换',
     delete: '删除', cancel: '取消', save: '保存',
     today: '今天', yesterday: '昨天',
     seedToast: '已创建默认类别和账户',
@@ -1033,6 +1063,9 @@ const I18N = {
     code: 'Code', regNo: 'Reg No.', ic: 'IC', phone: 'Phone', address: 'Address',
     addressPh: 'Street, City, Postcode',
     accNotePh: 'Optional note',
+    codeFirst: 'Prefix (4 chars)', codeSecond: 'Suffix (3 chars)', codePh: '3000',
+    phoneAdd: '+ Add Phone', addressAdd: '+ Add Address',
+    accSearchPh: 'Type code or company name…', noMatch: 'No matching account', selectedAcc: 'Selected', changeAcc: 'Change',
     delete: 'Delete', cancel: 'Cancel', save: 'Save',
     today: 'Today', yesterday: 'Yesterday',
     seedToast: 'Default categories and account created',
@@ -1125,9 +1158,9 @@ createApp({
     const trendChart = ref(null), pieChart = ref(null), yearlyChart = ref(null);
     let trendChartInstance = null, pieChartInstance = null, yearlyChartInstance = null;
 
-    const txModal = reactive({ open: false, editing: null, form: { type: 'expense', date: '', accountId: '', categoryId: '', amount: 0, description: '' } });
+    const txModal = reactive({ open: false, editing: null, form: { type: 'expense', date: '', accountId: '', categoryId: '', amount: 0, description: '', accSearch: '', accShowResults: false } });
     const catModal = reactive({ open: false, editing: null, form: { type: 'expense', name: '', nameEn: '', color: COLOR_PRESETS[5], icon: '📦' } });
-    const accModal = reactive({ open: false, editing: null, form: { type: 'company', code: '', name: '', regNo: '', address: '', ic: '', phone: '', description: '' } });
+    const accModal = reactive({ open: false, editing: null, form: { type: 'company', codeFirst: '', codeSecond: '', name: '', regNo: '', ic: '', phones: [''], addresses: [''], description: '' } });
 
     const toast = reactive({ show: false, message: '', type: 'info' });
     let toastTimer = null;
@@ -1199,15 +1232,25 @@ createApp({
     });
     const accModalValid = computed(() => {
       const f = accModal.form;
-      return f.code && f.code.trim() && f.name && f.name.trim() && (f.type === 'company' || f.type === 'personal');
+      return f.codeFirst && f.codeFirst.trim() && f.codeSecond && f.codeSecond.trim() && f.name && f.name.trim() && (f.type === 'company' || f.type === 'personal');
+    });
+
+    // 账户搜索结果 (在 txModal 用)
+    const accSearchResults = computed(() => {
+      const q = (txModal.form.accSearch || '').toLowerCase().trim();
+      if (!q) return accounts.value.slice(0, 20);  // 没输入时显示前 20 个
+      return accounts.value.filter(a => {
+        return (a.code || '').toLowerCase().indexOf(q) >= 0 || (a.name || '').toLowerCase().indexOf(q) >= 0;
+      }).slice(0, 20);
+    });
     });
 
     function getCategory(id) {
       return categories.value.find(c => c.id === id) || { name: i18n.lang === 'en' ? 'Uncategorized' : '未分类', color: '#8E8E93', icon: '📦', type: 'expense' };
     }
     function getAccount(id) {
-      if (!id) return { id: '', code: i18n.lang === 'en' ? '— No Account —' : '— 未指定账户 —', name: '', type: 'company' };
-      return accounts.value.find(a => a.id === id) || { id: '', code: i18n.lang === 'en' ? '— Unknown —' : '— 已删除账户 —', name: '', type: 'company' };
+      if (!id) return { id: '', code: i18n.lang === 'en' ? '— No Account —' : '— 未指定账户 —', name: '', type: 'company', phones: [], addresses: [] };
+      return accounts.value.find(a => a.id === id) || { id: '', code: i18n.lang === 'en' ? '— Unknown —' : '— 已删除账户 —', name: '', type: 'company', phones: [], addresses: [] };
     }
     function catName(cat) {
       if (!cat) return '';
@@ -1439,13 +1482,15 @@ createApp({
       if (tx) {
         txModal.editing = tx;
         const cat = getCategory(tx.categoryId);
-        txModal.form = { type: cat.type, date: tx.date, accountId: tx.accountId || '', categoryId: tx.categoryId, amount: tx.amount, description: tx.description || '' };
+        txModal.form = { type: cat.type, date: tx.date, accountId: tx.accountId || '', categoryId: tx.categoryId, amount: tx.amount, description: tx.description || '', accSearch: '', accShowResults: false };
       } else {
         txModal.editing = null;
-        txModal.form = { type: 'expense', date: currentMonth.value + '-' + String(today.getDate()).padStart(2, '0'), accountId: accounts.value[0]?.id || '', categoryId: '', amount: 0, description: '' };
+        txModal.form = { type: 'expense', date: currentMonth.value + '-' + String(today.getDate()).padStart(2, '0'), accountId: '', categoryId: '', amount: 0, description: '', accSearch: '', accShowResults: false };
       }
       txModal.open = true;
     }
+    function searchAccount() { txModal.form.accShowResults = true; }
+    function selectTxAccount(acc) { txModal.form.accountId = acc.id; txModal.form.accSearch = ''; txModal.form.accShowResults = false; }
     function closeTxModal() { txModal.open = false; txModal.editing = null; }
     async function saveTx() {
       console.log('[saveTx]', JSON.parse(JSON.stringify(txModal.form)));
@@ -1514,22 +1559,66 @@ createApp({
     function openAccModal(acc, type) {
       if (acc) {
         accModal.editing = acc;
-        accModal.form = { type: acc.type, code: acc.code || '', name: acc.name || '', regNo: acc.regNo || '', address: acc.address || '', ic: acc.ic || '', phone: acc.phone || '', description: acc.description || '' };
+        // 拆 code '3000/A01' → first '3000' second 'A01'
+        const codeParts = (acc.code || '').split('/');
+        // phones/addresses 数组化 (兼容旧单值)
+        const phones = Array.isArray(acc.phones) ? [...acc.phones] : (acc.phone ? [acc.phone] : ['']);
+        const addresses = Array.isArray(acc.addresses) ? [...acc.addresses] : (acc.address ? [acc.address] : ['']);
+        accModal.form = {
+          type: acc.type,
+          codeFirst: codeParts[0] || '',
+          codeSecond: codeParts[1] || '',
+          name: acc.name || '',
+          regNo: acc.regNo || '',
+          ic: acc.ic || '',
+          phones: phones.length ? phones : [''],
+          addresses: addresses.length ? addresses : [''],
+          description: acc.description || ''
+        };
       } else {
         accModal.editing = null;
         const nextNum = accounts.value.length + 1;
-        accModal.form = { type: type || 'company', code: '4000/A' + String(nextNum).padStart(2, '0'), name: '', regNo: '', address: '', ic: '', phone: '', description: '' };
+        accModal.form = {
+          type: type || 'company',
+          codeFirst: '4000',
+          codeSecond: 'A' + String(nextNum).padStart(2, '0'),
+          name: '',
+          regNo: '',
+          ic: '',
+          phones: [''],
+          addresses: [''],
+          description: ''
+        };
       }
       accModal.open = true;
     }
+    function addAccPhone() { accModal.form.phones.push(''); }
+    function removeAccPhone(i) { if (accModal.form.phones.length > 1) accModal.form.phones.splice(i, 1); }
+    function addAccAddress() { accModal.form.addresses.push(''); }
+    function removeAccAddress(i) { if (accModal.form.addresses.length > 1) accModal.form.addresses.splice(i, 1); }
     function closeAccModal() { accModal.open = false; accModal.editing = null; }
     async function saveAccount() {
       if (!accModalValid.value) { showToast(i18n.lang === 'en' ? 'Code and name required' : '编码和名称必填', 'error'); return; }
+      const code = (accModal.form.codeFirst || '').trim() + '/' + (accModal.form.codeSecond || '').trim();
+      const name = (accModal.form.name || '').trim();
+      // 清理空的 phones/addresses
+      const phones = (accModal.form.phones || []).map(p => (p || '').trim()).filter(Boolean);
+      const addresses = (accModal.form.addresses || []).map(a => (a || '').trim()).filter(Boolean);
+      const payload = {
+        type: accModal.form.type,
+        code: code,
+        name: name,
+        regNo: (accModal.form.regNo || '').trim(),
+        ic: (accModal.form.ic || '').trim(),
+        phones: phones,
+        addresses: addresses,
+        description: (accModal.form.description || '').trim()
+      };
       let newAccs;
       if (accModal.editing) {
-        newAccs = accounts.value.map(a => a.id === accModal.editing.id ? { ...a, ...accModal.form, code: accModal.form.code.trim(), name: accModal.form.name.trim(), updatedAt: now_() } : a);
+        newAccs = accounts.value.map(a => a.id === accModal.editing.id ? { ...a, ...payload, updatedAt: now_() } : a);
       } else {
-        const newAcc = { id: 'acc_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6), ...accModal.form, code: accModal.form.code.trim(), name: accModal.form.name.trim(), createdAt: now_(), updatedAt: now_() };
+        const newAcc = { id: 'acc_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6), ...payload, createdAt: now_(), updatedAt: now_() };
         newAccs = [...accounts.value, newAcc];
       }
       try {
@@ -1654,6 +1743,8 @@ createApp({
       openTxModal, closeTxModal, saveTx, deleteTx,
       openCatModal, closeCatModal, saveCategory, deleteCategory,
       openAccModal, closeAccModal, saveAccount, deleteAccount,
+      addAccPhone, removeAccPhone, addAccAddress, removeAccAddress,
+      accSearchResults, searchAccount, selectTxAccount,
       formatMoney, formatDateText,
       exportJSON, exportCSV, confirmClearAll,
       loadYearlyStats

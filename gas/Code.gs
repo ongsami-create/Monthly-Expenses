@@ -105,6 +105,19 @@ function saveAccounts(accounts) {
       if (!a.id) return { success: false, message: '账户 id 必填 (index=' + i + ')' };
       if (!a.name) return { success: false, message: '账户 name 必填 (index=' + i + ')' };
       if (VALID_ACC_TYPES.indexOf(a.type) < 0) return { success: false, message: '账户 type 必须是 company/personal (index=' + i + ')' };
+
+      // 数据迁移 + 规范化 (v1.3): 旧单值 phone/address 转数组
+      if (typeof a.phone === 'string' && a.phone.trim() && !Array.isArray(a.phones)) {
+        a.phones = [a.phone];
+      }
+      if (typeof a.address === 'string' && a.address.trim() && !Array.isArray(a.addresses)) {
+        a.addresses = [a.address];
+      }
+      if (!Array.isArray(a.phones)) a.phones = [];
+      if (!Array.isArray(a.addresses)) a.addresses = [];
+      // 过滤空字符串
+      a.phones = a.phones.filter(function(p) { return typeof p === 'string' && p.trim(); });
+      a.addresses = a.addresses.filter(function(s) { return typeof s === 'string' && s.trim(); });
     }
     writeProp(PROP_ACCOUNTS, accounts);
     cachePut_('accounts', accounts, CACHE_TTL_SEC);
