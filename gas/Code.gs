@@ -211,31 +211,40 @@ function addTransaction(tx) {
 function updateTransaction(tx) {
   try {
     if (!tx || !tx.id) return { success: false, message: 'id 必填' };
-    if (!tx.date || !tx.categoryId || typeof tx.amount !== 'number') {
-      return { success: false, message: 'date / categoryId / amount (number) 必填' };
-    }
 
     const idx = readProp(PROP_TX_INDEX, []);
     let oldMonth = null;
+    let oldTx = null;
     for (let i = 0; i < idx.length; i++) {
       const txs = readProp(txKey_(idx[i]), []);
       const found = txs.find(function(t) { return t.id === tx.id; });
-      if (found) { oldMonth = idx[i]; break; }
+      if (found) { oldMonth = idx[i]; oldTx = found; break; }
     }
     if (!oldMonth) return { success: false, message: '交易不存在: ' + tx.id };
 
-    const newMonth = getMonthFromDate_(tx.date);
+    // 容许缺失字段, fallback 到原 tx
+    const date = tx.date || oldTx.date;
+    const categoryId = tx.categoryId || oldTx.categoryId;
+    const amount = (typeof tx.amount === 'number') ? tx.amount : oldTx.amount;
+    const description = (tx.description !== undefined) ? tx.description : oldTx.description;
+    const accountId = (tx.accountId !== undefined) ? tx.accountId : (oldTx.accountId || '');
+
+    if (!date || !categoryId || typeof amount !== 'number') {
+      return { success: false, message: 'date / categoryId / amount (number) 必填' };
+    }
+
+    const newMonth = getMonthFromDate_(date);
     const oldTxs = readProp(txKey_(oldMonth), []);
     const newTxs = oldTxs.filter(function(t) { return t.id !== tx.id; });
 
     const updatedTx = {
       id: tx.id,
-      date: tx.date,
-      accountId: tx.accountId || '',
-      categoryId: tx.categoryId,
-      amount: Number(tx.amount),
-      description: tx.description || '',
-      createdAt: tx.createdAt || now_(),
+      date: date,
+      accountId: accountId,
+      categoryId: categoryId,
+      amount: Number(amount),
+      description: description || '',
+      createdAt: oldTx.createdAt || now_(),
       updatedAt: now_()
     };
 

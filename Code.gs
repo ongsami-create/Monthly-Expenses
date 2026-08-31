@@ -1,17 +1,22 @@
 // ========================================
 // Monthly Expenses - Google Apps Script Backend
-// 简易记账系统 (v1.0)
+// 简易记账系统 (v1.2)
 // 数据存储: PropertiesService (无 scope 要求, 永久保存)
 //   - 单 property 9KB / 总 500KB
-//   - 月度交易按 YYYY-MM 分片, 单月 50 笔 ≈ 7.5KB, 足够
+//   - 月度交易按 YYYY-MM 分片
+// v1.2: 加 Account + 4 种 category type (income/expense/asset/procurement)
 // ========================================
 
-const VERSION = '1.0.0';
+const VERSION = '1.2.0';
 const PROP_CATEGORIES = 'me_categories';
+const PROP_ACCOUNTS = 'me_accounts';
 const PROP_TX_PREFIX = 'me_tx_';        // me_tx_2026-08
 const PROP_TX_INDEX = 'me_tx_index';    // ['2026-07', '2026-08']
 const PROP_META = 'me_meta';
 const CACHE_TTL_SEC = 60;               // 1 分钟
+
+const VALID_CAT_TYPES = ['income', 'expense', 'asset', 'procurement'];
+const VALID_ACC_TYPES = ['company', 'personal'];
 
 // ==================== 工具 ====================
 
@@ -42,7 +47,7 @@ function writeProp(key, value) {
 }
 
 function now_() { return new Date().toISOString(); }
-function txKey_(month) { return PROP_TX_PREFIX + month; }  // 'me_tx_2026-08'
+function txKey_(month) { return PROP_TX_PREFIX + month; }
 
 // ==================== 类别 ====================
 
@@ -50,7 +55,6 @@ function getCategories() {
   try {
     const cached = cacheGet_('categories');
     if (cached) return { success: true, categories: cached, source: 'cache' };
-
     const cats = readProp(PROP_CATEGORIES, []);
     cachePut_('categories', cats, CACHE_TTL_SEC);
     return { success: true, categories: cats, source: 'storage' };
@@ -64,11 +68,10 @@ function saveCategories(categories) {
     if (!Array.isArray(categories)) {
       return { success: false, message: 'categories 必须是数组' };
     }
-    // 简单校验
     for (let i = 0; i < categories.length; i++) {
       const c = categories[i];
       if (!c.id || !c.name) return { success: false, message: '类别 id 和 name 必填 (index=' + i + ')' };
-      if (c.type !== 'income' && c.type !== 'expense') return { success: false, message: 'type 必须是 income 或 expense' };
+      if (VALID_CAT_TYPES.indexOf(c.type) < 0) return { success: false, message: 'type 必须是 ' + VALID_CAT_TYPES.join('/') + ' (index=' + i + ', got ' + c.type + ')' };
     }
     writeProp(PROP_CATEGORIES, categories);
     cachePut_('categories', categories, CACHE_TTL_SEC);
@@ -78,11 +81,43 @@ function saveCategories(categories) {
   }
 }
 
+// ==================== 账户 (v1.2 新增) ====================
+
+function getAccounts() {
+  try {
+    const cached = cacheGet_('accounts');
+    if (cached) return { success: true, accounts: cached, source: 'cache' };
+    const accs = readProp(PROP_ACCOUNTS, []);
+    cachePut_('accounts', accs, CACHE_TTL_SEC);
+    return { success: true, accounts: accs, source: 'storage' };
+  } catch (error) {
+    return { success: false, message: error.toString() };
+  }
+}
+
+function saveAccounts(accounts) {
+  try {
+    if (!Array.isArray(accounts)) {
+      return { success: false, message: 'accounts 必须是数组' };
+    }
+    for (let i = 0; i < accounts.length; i++) {
+      const a = accounts[i];
+      if (!a.id) return { success: false, message: '账户 id 必填 (index=' + i + ')' };
+      if (!a.name) return { success: false, message: '账户 name 必填 (index=' + i + ')' };
+      if (VALID_ACC_TYPES.indexOf(a.type) < 0) return { success: false, message: '账户 type 必须是 company/personal (index=' + i + ')' };
+    }
+    writeProp(PROP_ACCOUNTS, accounts);
+    cachePut_('accounts', accounts, CACHE_TTL_SEC);
+    return { success: true, count: accounts.length, savedAt: now_() };
+  } catch (error) {
+    return { success: false, message: error.toString() };
+  }
+}
+
 // ==================== 交易 ====================
 
 function getMonthFromDate_(dateStr) {
   if (!dateStr) return null;
-  // dateStr: 'YYYY-MM-DD' or ISO
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return null;
   const y = d.getFullYear();
@@ -128,7 +163,6 @@ function getAllTransactions() {
       const txs = readProp(txKey_(month), []);
       all.push.apply(all, txs);
     });
-    // 按日期倒序
     all.sort(function(a, b) {
       const da = new Date(a.date || 0).getTime();
       const db = new Date(b.date || 0).getTime();
@@ -146,16 +180,13 @@ function addTransaction(tx) {
     if (!tx || !tx.date || !tx.categoryId || typeof tx.amount !== 'number') {
       return { success: false, message: 'date / categoryId / amount (number) 必填' };
     }
-    if (tx.type !== 'income' && tx.type !== 'expense') {
-      return { success: false, message: 'type 必须是 income 或 expense' };
-    }
     const month = getMonthFromDate_(tx.date);
     if (!month) return { success: false, message: 'date 格式错误' };
 
     const newTx = {
       id: tx.id || ('tx_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8)),
       date: tx.date,
-      type: tx.type,
+      accountId: tx.accountId || '',
       categoryId: tx.categoryId,
       amount: Number(tx.amount),
       description: tx.description || '',
@@ -165,7 +196,6 @@ function addTransaction(tx) {
 
     const txs = readProp(txKey_(month), []);
     txs.push(newTx);
-    // 按日期排序
     txs.sort(function(a, b) { return new Date(a.date) - new Date(b.date); });
     writeProp(txKey_(month), txs);
     updateTxIndex_(month);
@@ -181,32 +211,40 @@ function addTransaction(tx) {
 function updateTransaction(tx) {
   try {
     if (!tx || !tx.id) return { success: false, message: 'id 必填' };
-    if (!tx.date || !tx.categoryId || typeof tx.amount !== 'number') {
-      return { success: false, message: 'date / categoryId / amount (number) 必填' };
-    }
 
-    // 找原交易所在月份
     const idx = readProp(PROP_TX_INDEX, []);
     let oldMonth = null;
+    let oldTx = null;
     for (let i = 0; i < idx.length; i++) {
       const txs = readProp(txKey_(idx[i]), []);
       const found = txs.find(function(t) { return t.id === tx.id; });
-      if (found) { oldMonth = idx[i]; break; }
+      if (found) { oldMonth = idx[i]; oldTx = found; break; }
     }
     if (!oldMonth) return { success: false, message: '交易不存在: ' + tx.id };
 
-    const newMonth = getMonthFromDate_(tx.date);
+    // 容许缺失字段, fallback 到原 tx
+    const date = tx.date || oldTx.date;
+    const categoryId = tx.categoryId || oldTx.categoryId;
+    const amount = (typeof tx.amount === 'number') ? tx.amount : oldTx.amount;
+    const description = (tx.description !== undefined) ? tx.description : oldTx.description;
+    const accountId = (tx.accountId !== undefined) ? tx.accountId : (oldTx.accountId || '');
+
+    if (!date || !categoryId || typeof amount !== 'number') {
+      return { success: false, message: 'date / categoryId / amount (number) 必填' };
+    }
+
+    const newMonth = getMonthFromDate_(date);
     const oldTxs = readProp(txKey_(oldMonth), []);
     const newTxs = oldTxs.filter(function(t) { return t.id !== tx.id; });
 
     const updatedTx = {
       id: tx.id,
-      date: tx.date,
-      type: tx.type || 'expense',
-      categoryId: tx.categoryId,
-      amount: Number(tx.amount),
-      description: tx.description || '',
-      createdAt: tx.createdAt || now_(),
+      date: date,
+      accountId: accountId,
+      categoryId: categoryId,
+      amount: Number(amount),
+      description: description || '',
+      createdAt: oldTx.createdAt || now_(),
       updatedAt: now_()
     };
 
@@ -216,7 +254,6 @@ function updateTransaction(tx) {
       writeProp(txKey_(oldMonth), newTxs);
       cachePut_('tx_' + oldMonth, newTxs, CACHE_TTL_SEC);
     } else {
-      // 跨月移动
       writeProp(txKey_(oldMonth), newTxs);
       const targetTxs = readProp(txKey_(newMonth), []);
       targetTxs.push(updatedTx);
@@ -260,26 +297,49 @@ function deleteTransaction(id) {
 // ==================== 统计 ====================
 
 function computeMonthStats_(month, txs, categories) {
+  const catMap = {};
+  if (Array.isArray(categories)) {
+    categories.forEach(function(c) { catMap[c.id] = c; });
+  }
   const stats = {
     month: month,
     income: 0,
     expense: 0,
-    profit: 0,
+    asset: 0,
+    procurement: 0,
+    profit: 0,           // income - expense
     count: txs.length,
-    byCategory: {},   // { categoryId: { amount, count, type } }
-    byDay: {}         // { 'YYYY-MM-DD': { income, expense } }
+    byCategory: {},
+    byAccount: {},       // v1.2: 按账户统计
+    byDay: {}
   };
   txs.forEach(function(tx) {
-    stats[tx.type] = (stats[tx.type] || 0) + tx.amount;
+    const cat = catMap[tx.categoryId];
+    const type = cat ? cat.type : 'expense';
+    if (VALID_CAT_TYPES.indexOf(type) >= 0) {
+      stats[type] = (stats[type] || 0) + tx.amount;
+    } else {
+      stats.expense = (stats.expense || 0) + tx.amount;
+    }
     if (!stats.byCategory[tx.categoryId]) {
-      stats.byCategory[tx.categoryId] = { amount: 0, count: 0, type: tx.type };
+      stats.byCategory[tx.categoryId] = { amount: 0, count: 0, type: type };
     }
     stats.byCategory[tx.categoryId].amount += tx.amount;
     stats.byCategory[tx.categoryId].count += 1;
 
+    // 按账户统计
+    const accId = tx.accountId || '__none__';
+    if (!stats.byAccount[accId]) {
+      stats.byAccount[accId] = { income: 0, expense: 0, asset: 0, procurement: 0, count: 0 };
+    }
+    stats.byAccount[accId][type] = (stats.byAccount[accId][type] || 0) + tx.amount;
+    stats.byAccount[accId].count += 1;
+
     const day = tx.date.slice(0, 10);
-    if (!stats.byDay[day]) stats.byDay[day] = { income: 0, expense: 0 };
-    stats.byDay[day][tx.type] += tx.amount;
+    if (!stats.byDay[day]) stats.byDay[day] = { income: 0, expense: 0, asset: 0, procurement: 0 };
+    if (VALID_CAT_TYPES.indexOf(type) >= 0) {
+      stats.byDay[day][type] = (stats.byDay[day][type] || 0) + tx.amount;
+    }
   });
   stats.profit = stats.income - stats.expense;
   return stats;
@@ -326,6 +386,8 @@ function getYearlyStats(year) {
           month: m,
           income: s.income,
           expense: s.expense,
+          asset: s.asset,
+          procurement: s.procurement,
           profit: s.profit,
           count: s.count
         });
@@ -352,14 +414,17 @@ function getDashboard(month) {
 
     const txs = getTransactions(month);
     const cats = getCategories();
+    const accs = getAccounts();
     if (!txs.success) return txs;
     if (!cats.success) return cats;
+    if (!accs.success) return accs;
 
     const stats = computeMonthStats_(month, txs.transactions, cats.categories);
     const result = {
       success: true,
       month: month,
       categories: cats.categories,
+      accounts: accs.accounts,
       transactions: txs.transactions,
       stats: stats,
       source: 'storage'
@@ -376,6 +441,7 @@ function getDashboard(month) {
 function ping() {
   try {
     const cats = readProp(PROP_CATEGORIES, []);
+    const accs = readProp(PROP_ACCOUNTS, []);
     const idx = readProp(PROP_TX_INDEX, []);
     return {
       success: true,
@@ -384,6 +450,7 @@ function ping() {
       version: VERSION,
       stats: {
         categories: cats.length,
+        accounts: accs.length,
         months: idx.length
       }
     };
@@ -404,6 +471,7 @@ function clearAllData() {
 
     const cache = CacheService.getScriptCache();
     cache.remove('categories');
+    cache.remove('accounts');
     cache.remove('all_transactions');
     return { success: true, cleared: toDelete.length };
   } catch (error) {
@@ -444,6 +512,7 @@ function doGet(e) {
 
     if (nocache) {
       cacheDel_('categories');
+      cacheDel_('accounts');
       cacheDel_('all_transactions');
       cacheDel_('tx_' + month);
       cacheDel_('stats_' + month);
@@ -457,6 +526,9 @@ function doGet(e) {
         break;
       case 'getCategories':
         result = getCategories();
+        break;
+      case 'getAccounts':
+        result = getAccounts();
         break;
       case 'getTransactions':
         result = getTransactions(month);
@@ -500,13 +572,15 @@ function doPost(e) {
     if (e && e.postData && e.postData.contents) {
       try { body = JSON.parse(e.postData.contents); } catch (parseErr) { body = {}; }
     }
-    // 支持两种方式: URL query string (?action=xxx) 或 body JSON ({action: 'xxx', ...})
     const action = params.action || body.action;
     let result;
 
     switch (action) {
       case 'saveCategories':
         result = saveCategories(body.categories || []);
+        break;
+      case 'saveAccounts':
+        result = saveAccounts(body.accounts || []);
         break;
       case 'addTransaction':
         result = addTransaction(body);
