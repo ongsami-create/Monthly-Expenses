@@ -1621,9 +1621,13 @@ async function apiGet(action, params = {}) {
 }
 
 async function apiPost(action, body) {
+  // ⚠️ 重要: 用 text/plain 避免 CORS preflight
+  // application/json 是 preflighted, GAS 默认不处理 OPTIONS, 浏览器会 block POST
+  // text/plain 是 CORS simple request 白名单, 无 preflight
+  // GAS doPost 从 e.postData.contents 拿 raw body 字符串, 仍然能 JSON.parse
   const r = await fetch(API_BASE, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
     body: JSON.stringify({ action, ...body })
   });
   return r.json();
