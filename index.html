@@ -1629,6 +1629,26 @@ async function apiPost(action, body) {
   return r.json();
 }
 
+// 带重试的 POST: 最多 3 次, 每次间隔 1s, 解决 GAS 偶发 5xx / 冷启动慢
+async function apiPostWithRetry(action, body, maxRetries = 3) {
+  let lastErr;
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const r = await apiPost(action, body);
+      if (r && r.success !== false) return r;
+      // success: false 是业务错误, 不重试 (没意义)
+      if (r && r.success === false) return r;
+      // r 是 undefined 或没 success 字段, 算异常, 重试
+      lastErr = new Error('Empty response');
+    } catch (e) {
+      lastErr = e;
+      console.warn(`[apiPostWithRetry] ${action} attempt ${i+1}/${maxRetries} failed:`, e.message);
+      if (i < maxRetries - 1) await new Promise(r => setTimeout(r, 1000));
+    }
+  }
+  throw lastErr;
+}
+
 // ============================================================
 // Vue App
 // ============================================================
@@ -1996,18 +2016,28 @@ createApp({
     }
     function closeTxModal() { txModal.open = false; txModal.editing = null; }
     async function saveTx() {
-      if (!txModalValid.value) return;
+      console.log('[saveTx] start, form:', JSON.parse(JSON.stringify(txModal.form)));
+      if (!txModalValid.value) {
+        console.warn('[saveTx] invalid, abort');
+        showToast(i18n.lang === 'en' ? 'Please fill all fields' : '请填写完整', 'error');
+        return;
+      }
       try {
         if (txModal.editing) {
-          const r = await apiPost('updateTransaction', { id: txModal.editing.id, ...txModal.form });
+          const r = await apiPostWithRetry('updateTransaction', { id: txModal.editing.id, ...txModal.form });
+          console.log('[saveTx] update response:', r);
           if (r.success) { showToast(i18n.lang === 'en' ? 'Updated' : '已更新', 'success'); closeTxModal(); await loadMonth(currentMonth.value); if (activeTab.value === 'reports') loadYearlyStats(); }
-          else showToast((i18n.lang === 'en' ? 'Update failed: ' : '更新失败: ') + r.message, 'error');
+          else { console.error('[saveTx] update failed:', r); showToast((i18n.lang === 'en' ? 'Update failed: ' : '更新失败: ') + (r.message || JSON.stringify(r)), 'error', 5000); }
         } else {
-          const r = await apiPost('addTransaction', txModal.form);
+          const r = await apiPostWithRetry('addTransaction', txModal.form);
+          console.log('[saveTx] add response:', r);
           if (r.success) { showToast(i18n.lang === 'en' ? 'Saved' : '已记录', 'success'); closeTxModal(); await loadMonth(currentMonth.value); if (activeTab.value === 'reports') loadYearlyStats(); }
-          else showToast((i18n.lang === 'en' ? 'Save failed: ' : '保存失败: ') + r.message, 'error');
+          else { console.error('[saveTx] add failed:', r); showToast((i18n.lang === 'en' ? 'Save failed: ' : '保存失败: ') + (r.message || JSON.stringify(r)), 'error', 5000); }
         }
-      } catch (e) { showToast((i18n.lang === 'en' ? 'Network error: ' : '网络错误: ') + e.message, 'error'); }
+      } catch (e) {
+        console.error('[saveTx] exception:', e);
+        showToast((i18n.lang === 'en' ? 'Network error: ' : '网络错误: ') + e.message, 'error', 5000);
+      }
     }
     async function deleteTx() {
       if (!txModal.editing) return;
@@ -2031,19 +2061,36 @@ createApp({
     }
     function closeCatModal() { catModal.open = false; catModal.editing = null; }
     async function saveCategory() {
-      if (!catModal.form.name) return;
+      console.log('[saveCategory] start, form:', JSON.parse(JSON.stringify(catModal.form)));
+      if (!catModal.form.name || !catModal.form.name.trim()) {
+        console.warn('[saveCategory] name empty, abort');
+        showToast(i18n.lang === 'en' ? 'Name required' : '请输入名称', 'error');
+        return;
+      }
       let newCats;
       if (catModal.editing) {
         newCats = categories.value.map(c => c.id === catModal.editing.id ? { ...c, name: catModal.form.name, nameEn: catModal.form.nameEn || '', color: catModal.form.color, icon: catModal.form.icon } : c);
       } else {
-        const newCat = { id: 'cat_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6), name: catModal.form.name, nameEn: catModal.form.nameEn || '', type: catModal.form.type, color: catModal.form.color, icon: catModal.form.icon };
+        const newCat = { id: 'cat_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6), name: catModal.form.name.trim(), nameEn: catModal.form.nameEn || '', type: catModal.form.type, color: catModal.form.color, icon: catModal.form.icon };
         newCats = [...categories.value, newCat];
       }
+      console.log('[saveCategory] newCats count:', newCats.length, 'first:', newCats[0]);
       try {
-        const r = await apiPost('saveCategories', { categories: newCats });
-        if (r.success) { categories.value = newCats; localStorage.setItem(STORAGE_KEYS.categories, JSON.stringify(newCats)); showToast(i18n.lang === 'en' ? 'Saved' : '已保存', 'success'); closeCatModal(); }
-        else showToast((i18n.lang === 'en' ? 'Save failed: ' : '保存失败: ') + r.message, 'error');
-      } catch (e) { showToast(i18n.lang === 'en' ? 'Network error' : '网络错误', 'error'); }
+        const r = await apiPostWithRetry('saveCategories', { categories: newCats });
+        console.log('[saveCategory] response:', r);
+        if (r.success) {
+          categories.value = newCats;
+          localStorage.setItem(STORAGE_KEYS.categories, JSON.stringify(newCats));
+          showToast(i18n.lang === 'en' ? 'Saved' : '已保存', 'success');
+          closeCatModal();
+        } else {
+          console.error('[saveCategory] API failed:', r);
+          showToast((i18n.lang === 'en' ? 'Save failed: ' : '保存失败: ') + (r.message || JSON.stringify(r)), 'error', 5000);
+        }
+      } catch (e) {
+        console.error('[saveCategory] exception:', e);
+        showToast((i18n.lang === 'en' ? 'Network error: ' : '网络错误: ') + e.message, 'error', 5000);
+      }
     }
     async function deleteCategory(cat) {
       const inUse = transactions.value.some(t => t.categoryId === cat.id);
