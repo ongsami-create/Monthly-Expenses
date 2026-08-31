@@ -1243,7 +1243,6 @@ createApp({
         return (a.code || '').toLowerCase().indexOf(q) >= 0 || (a.name || '').toLowerCase().indexOf(q) >= 0;
       }).slice(0, 20);
     });
-    });
 
     function getCategory(id) {
       return categories.value.find(c => c.id === id) || { name: i18n.lang === 'en' ? 'Uncategorized' : '未分类', color: '#8E8E93', icon: '📦', type: 'expense' };
