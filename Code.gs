@@ -13,7 +13,7 @@ const PROP_ACCOUNTS = 'me_accounts';
 const PROP_TX_PREFIX = 'me_tx_';        // me_tx_2026-08
 const PROP_TX_INDEX = 'me_tx_index';    // ['2026-07', '2026-08']
 const PROP_META = 'me_meta';
-const CACHE_TTL_SEC = 60;               // 1 分钟
+const CACHE_TTL_SEC = 5;                // v1.4: 5s (跨设备同步感知更快; 之前 60s 太慢)
 
 const VALID_CAT_TYPES = ['income', 'expense', 'asset', 'procurement'];
 const VALID_ACC_TYPES = ['company', 'personal'];

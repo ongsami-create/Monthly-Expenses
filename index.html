@@ -548,6 +548,7 @@ body {
       <button class="month-btn" @click="changeMonth(1)">›</button>
     </div>
     <div class="topbar-actions">
+      <button class="btn-icon" @click="forceRefresh" :title="t('refresh')" style="font-size:18px;">↻</button>
       <button class="lang-toggle" @click="toggleLang">{{ i18n.lang === 'zh' ? 'EN' : '中' }}</button>
       <button class="btn btn-secondary" @click="exportJSON"><span>📥</span> <span class="label">{{ t('export') }}</span></button>
       <button class="btn btn-primary" @click="openTxModal()"><span style="font-size:18px; line-height:1;">+</span> <span class="label">{{ t('add') }}</span></button>
@@ -1006,6 +1007,7 @@ const I18N = {
     addCat: '新增类别', editCat: '编辑类别',
     addAcc: '新增账户', editAcc: '编辑账户',
     type: '类型', date: '日期', amount: '金额',
+    refresh: '刷新云端数据', refreshing: '刷新中…', refreshed: '已同步',
     account: '账户', selectAcc: '选择账户…', noAccYet: '还没有账户,',
     category: '类别', selectCat: '选择类别…', noCatYet: '还没有 {type} 类别,',
     goAdd: '去添加',
@@ -1053,6 +1055,7 @@ const I18N = {
     addCat: 'New Category', editCat: 'Edit Category',
     addAcc: 'New Account', editAcc: 'Edit Account',
     type: 'Type', date: 'Date', amount: 'Amount',
+    refresh: 'Refresh cloud data', refreshing: 'Refreshing…', refreshed: 'Synced',
     account: 'Account', selectAcc: 'Select account…', noAccYet: 'No account yet,',
     category: 'Category', selectCat: 'Select category…', noCatYet: 'No {type} category yet,',
     goAdd: 'add one',
@@ -1649,6 +1652,38 @@ createApp({
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     }
+
+    // v1.4: 强制刷新云端数据 (跨设备同步)
+    // 传 nocache=1 给 GAS, 跳过 5s CacheService, 实时读 PropertiesService
+    async function forceRefresh() {
+      console.log('[forceRefresh] start');
+      const r = await apiGet('ping', { nocache: '1' });
+      if (!r.success) {
+        showToast(i18n.lang === 'en' ? 'Refresh failed: API offline' : '刷新失败: 后端不在线', 'error');
+        return;
+      }
+      // 重新拉所有数据 (全用 nocache=1)
+      const [cats, accs, dash, yr] = await Promise.all([
+        apiGet('getCategories', { nocache: '1' }),
+        apiGet('getAccounts', { nocache: '1' }),
+        apiGet('getDashboard', { month: currentMonth.value, nocache: '1' }),
+        apiGet('getYearlyStats', { year: currentYear.value, nocache: '1' })
+      ]);
+      if (cats.success) { categories.value = cats.categories || []; localStorage.setItem(STORAGE_KEYS.categories, JSON.stringify(categories.value)); }
+      if (accs.success) { accounts.value = accs.accounts || []; localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify(accounts.value)); }
+      if (dash.success) {
+        transactions.value = dash.transactions || [];
+        Object.assign(stats, dash.stats || { income: 0, expense: 0, asset: 0, procurement: 0, profit: 0, count: 0, byCategory: {}, byAccount: {}, byDay: {} });
+        localStorage.setItem(STORAGE_KEYS.transactions + '_' + currentMonth.value, JSON.stringify(transactions.value));
+      }
+      if (yr.success) yearlyData.value = yr.months || [];
+      await nextTick();
+      renderCharts();
+      renderYearlyChart();
+      const cnt = (cats.success ? cats.categories.length : 0) + 'C / ' + (accs.success ? accs.accounts.length : 0) + 'A / ' + (dash.success ? dash.transactions.length : 0) + 'T';
+      console.log('[forceRefresh] done:', cnt);
+      showToast(t('refreshed') + ' (' + cnt + ')', 'success', 1800);
+    }
     function exportJSON() {
       const data = { exportedAt: new Date().toISOString(), version: '1.2', categories: categories.value, accounts: accounts.value, transactions: transactions.value };
       downloadFile('monthly-expenses-' + currentMonth.value + '.json', JSON.stringify(data, null, 2), 'application/json');
@@ -1746,6 +1781,7 @@ createApp({
       accSearchResults, searchAccount, selectTxAccount,
       formatMoney, formatDateText,
       exportJSON, exportCSV, confirmClearAll,
+      forceRefresh,
       loadYearlyStats
     };
   }
