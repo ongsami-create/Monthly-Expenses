@@ -1613,6 +1613,16 @@ createApp({
     }
 
     async function loadMonth(month) {
+      // v1.6 优化: 先读 cache,UI 立刻显示 (翻月份秒开),后台再拉新
+      const cachedStr = localStorage.getItem(STORAGE_KEYS.transactions + '_' + month);
+      let cacheLoaded = false;
+      if (cachedStr) {
+        try {
+          transactions.value = JSON.parse(cachedStr);
+          cacheLoaded = true;
+        } catch (e) {}
+      }
+      if (cacheLoaded && categories.value.length) recomputeStats();
       loading.value = true;
       try {
         const r = await apiGet('getDashboard', { month });
@@ -1625,9 +1635,11 @@ createApp({
           localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify(accounts.value));
         }
       } catch (e) {
-        const cached = localStorage.getItem(STORAGE_KEYS.transactions + '_' + month);
-        if (cached) { transactions.value = JSON.parse(cached); recomputeStats(); }
-        else { transactions.value = []; Object.assign(stats, { income: 0, expense: 0, asset: 0, procurement: 0, profit: 0, count: 0, byCategory: {}, byAccount: {}, byDay: {} }); }
+        if (!cacheLoaded) {
+          transactions.value = [];
+          Object.assign(stats, { income: 0, expense: 0, asset: 0, procurement: 0, profit: 0, count: 0, byCategory: {}, byAccount: {}, byDay: {} });
+        }
+        // 有 cache 就静默,保留缓存数据 (避免误以为数据丢失)
       } finally {
         loading.value = false;
         await nextTick();
@@ -1947,6 +1959,14 @@ createApp({
 
     // ============ v1.5: RMB 流水 functions ============
     async function loadRmbMonth(month) {
+      // v1.6 优化: 先读 cache,UI 立刻显示
+      const cachedStr = localStorage.getItem('me_rmb_tx_' + month);
+      let cacheLoaded = false;
+      if (cachedStr) {
+        try { rmbTransactions.value = JSON.parse(cachedStr); cacheLoaded = true; } catch (e) {}
+      } else {
+        rmbTransactions.value = [];
+      }
       try {
         const r = await apiGet('getRmbTransactions', { month });
         if (r.success) {
@@ -1954,9 +1974,8 @@ createApp({
           localStorage.setItem('me_rmb_tx_' + month, JSON.stringify(rmbTransactions.value));
         }
       } catch (e) {
-        const cached = localStorage.getItem('me_rmb_tx_' + month);
-        if (cached) rmbTransactions.value = JSON.parse(cached);
-        else rmbTransactions.value = [];
+        if (!cacheLoaded) rmbTransactions.value = [];
+        // 有 cache 就静默
       }
       // 同步算 balance (按日期 ASC)
       let bal = rmbOpeningBalance.value || 0;
