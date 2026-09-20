@@ -839,9 +839,9 @@ body {
                 <div style="font-weight:600;">{{ row.project }}</div>
                 <div v-if="row.note" style="font-size:11px; color:var(--text-tertiary); margin-top:1px;">{{ row.note }}</div>
               </td>
-              <td class="col-out">{{ row.out ? formatMoney(row.out) : '—' }}</td>
-              <td class="col-in">{{ row.in ? formatMoney(row.in) : '—' }}</td>
-              <td class="col-balance" :class="{positive: row.balance >= 0, negative: row.balance < 0}">{{ formatMoney(row.balance) }}</td>
+              <td class="col-out">{{ row.type === 'out' ? formatMoney(row.amount) : '—' }}</td>
+              <td class="col-in">{{ row.type === 'in' ? formatMoney(row.amount) : '—' }}</td>
+              <td class="col-balance" :class="{positive: (row._balance || 0) >= 0, negative: (row._balance || 0) < 0}">{{ formatMoney(row._balance || 0) }}</td>
               <td><span class="rmb-row-action" @click.stop="deleteRmbTx(row.id)" title="删除">🗑</span></td>
             </tr>
           </tbody>
@@ -1110,15 +1110,15 @@ body {
   <div v-if="rmbModal.open" class="modal-overlay" @click.self="closeRmbModal">
     <div class="modal">
       <div class="modal-header">
-        <div class="modal-title">{{ rmbModal.editing ? t('editAcc') : (rmbModal.form.type === 'in' ? t('rmbAddIn') : t('rmbAddOut')) }}</div>
+        <div class="modal-title">{{ rmbModal.editing ? (rmbModal.editing.type === 'in' ? t('rmbEditIn') : t('rmbEditOut')) : (rmbModal.form.type === 'in' ? t('rmbAddIn') : t('rmbAddOut')) }}</div>
         <button class="modal-close" @click="closeRmbModal">×</button>
       </div>
       <div class="modal-body">
         <div v-if="!rmbModal.editing" class="form-group">
           <label class="form-label">{{ t('type') }}</label>
           <div class="type-toggle">
-            <button :class="{active: rmbModal.form.type === 'in'}" class="company" style="background:var(--success);" @click="rmbModal.form.type = 'in'" v-show="rmbModal.form.type !== 'in'">{{ t('rmbIn') }}</button>
-            <button :class="{active: rmbModal.form.type === 'out'}" class="personal" style="background:var(--danger);" @click="rmbModal.form.type = 'out'" v-show="rmbModal.form.type !== 'out'">{{ t('rmbOut') }}</button>
+            <button :class="{active: rmbModal.form.type === 'in', income: rmbModal.form.type === 'in'}" @click="rmbModal.form.type = 'in'">{{ t('rmbIn') }}</button>
+            <button :class="{active: rmbModal.form.type === 'out', expense: rmbModal.form.type === 'out'}" @click="rmbModal.form.type = 'out'">{{ t('rmbOut') }}</button>
           </div>
         </div>
         <div class="form-row">
@@ -1208,6 +1208,7 @@ const I18N = {
     rmbSortAsc: '↑', rmbSortDesc: '↓', rmbSortNone: '↕',
     rmbNoTx: '本月还没有 RMB 流水',
     rmbAddIn: '+ 记一笔转入', rmbAddOut: '+ 记一笔转出',
+    rmbEditIn: '编辑转入金额', rmbEditOut: '编辑转出金额',
     defaultCatNames: {
       cat_inc_salary: '薪水', cat_inc_other: '其他收入',
       cat_exp_rent: '租金', cat_exp_meal: '伙食', cat_exp_transport: '交通',
@@ -1265,6 +1266,7 @@ const I18N = {
     rmbSortAsc: '↑', rmbSortDesc: '↓', rmbSortNone: '↕',
     rmbNoTx: 'No RMB transactions this month',
     rmbAddIn: '+ Record Inflow', rmbAddOut: '+ Record Outflow',
+    rmbEditIn: 'Edit Inflow', rmbEditOut: 'Edit Outflow',
     defaultCatNames: {
       cat_inc_salary: 'Salary', cat_inc_other: 'Other Income',
       cat_exp_rent: 'Rent', cat_exp_meal: 'Meals', cat_exp_transport: 'Transport',
