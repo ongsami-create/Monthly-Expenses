@@ -862,7 +862,9 @@ body {
           <button :class="{active: rmbFilter.type === 'in'}" @click="rmbFilter.type = 'in'">{{ t('rmbFilterIn') }}</button>
           <button :class="{active: rmbFilter.type === 'out'}" @click="rmbFilter.type = 'out'">{{ t('rmbFilterOut') }}</button>
         </div>
-        </div>
+        <button class="btn btn-primary" @click="openRmbModal('in')">{{ t('rmbAddIn') }}</button>
+        <button class="btn btn-danger" @click="openRmbModal('out')">{{ t('rmbAddOut') }}</button>
+      </div>
 
       <div class="rmb-table">
         <table>
@@ -913,16 +915,6 @@ body {
           </tfoot>
         </table>
       </div>
-
-      <!-- 底部 Tab Bar: 转入 / 转出 快速输入 (PWA 移动端友好) -->
-      <nav class="rmb-tabbar">
-        <button class="in-tab" @click="openRmbModal('in')">
-          <span style="font-size:20px;">↗</span><span>{{ t('rmbAddIn') }}</span>
-        </button>
-        <button class="out-tab" @click="openRmbModal('out')">
-          <span style="font-size:20px;">↘</span><span>{{ t('rmbAddOut') }}</span>
-        </button>
-      </nav>
     </div>
 
     <!-- Tab: 报表 -->
