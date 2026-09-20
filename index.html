@@ -1987,7 +1987,8 @@ createApp({
 
     async function loadRmbOpening() {
       try {
-        const r = await apiGet('getRmbOpening', { nocache: '1' });
+        // v1.6 优化: 不带 nocache, 让 GAS 60s cache 命中 (~50ms); forceRefresh 仍然 nocache=1
+        const r = await apiGet('getRmbOpening');
         if (r.success) {
           rmbOpeningBalance.value = Number(r.openingBalance) || 0;
           rmbOpeningInput.value = rmbOpeningBalance.value;
@@ -2150,7 +2151,7 @@ createApp({
         if (yearlyData.value.length === 0) await loadYearlyStats();
         else { await nextTick(); renderCharts(); }
       } else if (v === 'reports') loadYearlyStats();
-      else if (v === 'rmb') { await loadRmbOpening(); await loadRmbMonth(currentMonth.value); }
+      else if (v === 'rmb') { await Promise.all([loadRmbOpening(), loadRmbMonth(currentMonth.value)]); }
     });
     watch(currentMonth, () => { if (activeTab.value === 'reports') loadYearlyStats(); });
 
@@ -2175,9 +2176,8 @@ createApp({
         await loadCategories();
         await loadAccounts();
         await loadMonth(currentMonth.value);
-        // v1.5: RMB 期初 + 当月流水
-        await loadRmbOpening();
-        await loadRmbMonth(currentMonth.value);
+        // v1.6: RMB 期初 + 当月流水 (并发,省一半时间)
+        await Promise.all([loadRmbOpening(), loadRmbMonth(currentMonth.value)]);
         if (activeTab.value === 'reports') loadYearlyStats();
         apiGet('getYearlyStats', { year: currentYear.value }).then(r => {
           if (r.success) { yearlyData.value = r.months || []; if (activeTab.value === 'overview') renderCharts(); }
