@@ -472,6 +472,233 @@ function ping() {
   }
 }
 
+// ==================== RMB 流水 (v1.5: 银行月结单式记账) ====================
+// 数据结构 (跟 transaction 平行, 但独立模块):
+//   - me_rmb_opening: 期初余额 (RMB, 默认 0)
+//   - me_rmb_tx_<YYYY-MM>: 月度流水数组, 按 date ASC 排序
+//   - me_rmb_tx_index: ['2026-07', '2026-08']
+// 每条 tx: { id, date, type: 'in'|'out', project, amount, note, createdAt, updatedAt }
+
+const PROP_RMB_OPENING = 'me_rmb_opening';
+const PROP_RMB_TX_PREFIX = 'me_rmb_tx_';
+const PROP_RMB_TX_INDEX = 'me_rmb_tx_index';
+
+function getRmbOpeningBalance() {
+  try {
+    const v = props_().getProperty(PROP_RMB_OPENING);
+    return { success: true, openingBalance: v ? Number(v) : 0 };
+  } catch (e) { return { success: false, message: e.toString() }; }
+}
+
+function setRmbOpeningBalance(amount) {
+  try {
+    const v = Number(amount);
+    if (isNaN(v)) return { success: false, message: '金额必须是数字' };
+    props_().setProperty(PROP_RMB_OPENING, String(v));
+    cachePut_('rmb_opening', v, CACHE_TTL_SEC);
+    return { success: true, openingBalance: v };
+  } catch (e) { return { success: false, message: e.toString() }; }
+}
+
+function getRmbMonthFromDate_(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return null;
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
+
+function getRmbTransactions(month) {
+  try {
+    if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+      return { success: false, message: 'month 必填 YYYY-MM' };
+    }
+    const cacheKey = 'rmb_tx_' + month;
+    const cached = cacheGet_(cacheKey);
+    if (cached) return { success: true, transactions: cached, month: month, source: 'cache' };
+    const txs = readProp(PROP_RMB_TX_PREFIX + month, []);
+    cachePut_(cacheKey, txs, CACHE_TTL_SEC);
+    return { success: true, transactions: txs, month: month, source: 'storage' };
+  } catch (e) { return { success: false, message: e.toString() }; }
+}
+
+function getAllRmbTransactions() {
+  try {
+    const cached = cacheGet_('all_rmb_tx');
+    if (cached) return { success: true, transactions: cached, source: 'cache' };
+
+    const idx = readProp(PROP_RMB_TX_INDEX, []);
+    const all = [];
+    idx.forEach(function(m) {
+      const txs = readProp(PROP_RMB_TX_PREFIX + m, []);
+      all.push.apply(all, txs);
+    });
+    // 银行月结单顺序: 日期 ASC
+    all.sort(function(a, b) {
+      const da = new Date(a.date || 0).getTime();
+      const db = new Date(b.date || 0).getTime();
+      return da - db;
+    });
+    cachePut_('all_rmb_tx', all, CACHE_TTL_SEC);
+    return { success: true, transactions: all, source: 'storage' };
+  } catch (e) { return { success: false, message: e.toString() }; }
+}
+
+function addRmbTransaction(tx) {
+  try {
+    if (!tx || !tx.date || !tx.project || typeof tx.amount !== 'number') {
+      return { success: false, message: 'date / project / amount (number) 必填' };
+    }
+    if (tx.type !== 'in' && tx.type !== 'out') {
+      return { success: false, message: 'type 必须是 in 或 out' };
+    }
+    const month = getRmbMonthFromDate_(tx.date);
+    if (!month) return { success: false, message: 'date 格式错误' };
+
+    const newTx = {
+      id: tx.id || ('rmb_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8)),
+      date: tx.date,
+      type: tx.type,
+      project: String(tx.project).trim(),
+      amount: Number(tx.amount),
+      note: tx.note || '',
+      createdAt: now_(),
+      updatedAt: now_()
+    };
+
+    const txs = readProp(PROP_RMB_TX_PREFIX + month, []);
+    txs.push(newTx);
+    txs.sort(function(a, b) { return new Date(a.date) - new Date(b.date); });
+    writeProp(PROP_RMB_TX_PREFIX + month, txs);
+
+    const idx = readProp(PROP_RMB_TX_INDEX, []);
+    if (idx.indexOf(month) < 0) { idx.push(month); idx.sort(); writeProp(PROP_RMB_TX_INDEX, idx); }
+
+    cachePut_('rmb_tx_' + month, txs, CACHE_TTL_SEC);
+    cacheDel_('all_rmb_tx');
+
+    return { success: true, transaction: newTx, month: month };
+  } catch (e) { return { success: false, message: e.toString() }; }
+}
+
+function updateRmbTransaction(tx) {
+  try {
+    if (!tx || !tx.id) return { success: false, message: 'id 必填' };
+
+    const idx = readProp(PROP_RMB_TX_INDEX, []);
+    let oldMonth = null, oldTx = null;
+    for (let i = 0; i < idx.length; i++) {
+      const txs = readProp(PROP_RMB_TX_PREFIX + idx[i], []);
+      const found = txs.find(function(t) { return t.id === tx.id; });
+      if (found) { oldMonth = idx[i]; oldTx = found; break; }
+    }
+    if (!oldMonth) return { success: false, message: '流水不存在: ' + tx.id };
+
+    const date = tx.date || oldTx.date;
+    const project = tx.project || oldTx.project;
+    const amount = (typeof tx.amount === 'number') ? tx.amount : oldTx.amount;
+    const note = (tx.note !== undefined) ? tx.note : oldTx.note;
+    const type = tx.type || oldTx.type;
+
+    if (!date || !project || typeof amount !== 'number') {
+      return { success: false, message: 'date / project / amount (number) 必填' };
+    }
+    if (type !== 'in' && type !== 'out') {
+      return { success: false, message: 'type 必须是 in 或 out' };
+    }
+
+    const newMonth = getRmbMonthFromDate_(date);
+    const oldTxs = readProp(PROP_RMB_TX_PREFIX + oldMonth, []);
+    const newTxs = oldTxs.filter(function(t) { return t.id !== tx.id; });
+
+    const updatedTx = {
+      id: tx.id,
+      date: date,
+      type: type,
+      project: String(project).trim(),
+      amount: Number(amount),
+      note: note || '',
+      createdAt: oldTx.createdAt || now_(),
+      updatedAt: now_()
+    };
+
+    if (oldMonth === newMonth) {
+      newTxs.push(updatedTx);
+      newTxs.sort(function(a, b) { return new Date(a.date) - new Date(b.date); });
+      writeProp(PROP_RMB_TX_PREFIX + oldMonth, newTxs);
+      cachePut_('rmb_tx_' + oldMonth, newTxs, CACHE_TTL_SEC);
+    } else {
+      writeProp(PROP_RMB_TX_PREFIX + oldMonth, newTxs);
+      const targetTxs = readProp(PROP_RMB_TX_PREFIX + newMonth, []);
+      targetTxs.push(updatedTx);
+      targetTxs.sort(function(a, b) { return new Date(a.date) - new Date(b.date); });
+      writeProp(PROP_RMB_TX_PREFIX + newMonth, targetTxs);
+      const newIdx = readProp(PROP_RMB_TX_INDEX, []);
+      if (newIdx.indexOf(newMonth) < 0) { newIdx.push(newMonth); newIdx.sort(); writeProp(PROP_RMB_TX_INDEX, newIdx); }
+      cachePut_('rmb_tx_' + oldMonth, newTxs, CACHE_TTL_SEC);
+      cachePut_('rmb_tx_' + newMonth, targetTxs, CACHE_TTL_SEC);
+    }
+    cacheDel_('all_rmb_tx');
+
+    return { success: true, transaction: updatedTx };
+  } catch (e) { return { success: false, message: e.toString() }; }
+}
+
+function deleteRmbTransaction(id) {
+  try {
+    if (!id) return { success: false, message: 'id 必填' };
+    const idx = readProp(PROP_RMB_TX_INDEX, []);
+    let month = null;
+    for (let i = 0; i < idx.length; i++) {
+      const txs = readProp(PROP_RMB_TX_PREFIX + idx[i], []);
+      if (txs.find(function(t) { return t.id === id; })) { month = idx[i]; break; }
+    }
+    if (!month) return { success: false, message: '流水不存在: ' + id };
+
+    const txs = readProp(PROP_RMB_TX_PREFIX + month, []);
+    const newTxs = txs.filter(function(t) { return t.id !== id; });
+    writeProp(PROP_RMB_TX_PREFIX + month, newTxs);
+    cachePut_('rmb_tx_' + month, newTxs, CACHE_TTL_SEC);
+    cacheDel_('all_rmb_tx');
+
+    return { success: true, deleted: id, month: month };
+  } catch (e) { return { success: false, message: e.toString() }; }
+}
+
+function getRmbMonthlyStats(month) {
+  try {
+    if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+      return { success: false, message: 'month 必填 YYYY-MM' };
+    }
+    const cacheKey = 'rmb_stats_' + month;
+    const cached = cacheGet_(cacheKey);
+    if (cached) return { success: true, stats: cached, source: 'cache' };
+
+    const txsResult = getRmbTransactions(month);
+    if (!txsResult.success) return txsResult;
+    const ob = readProp(PROP_RMB_OPENING, '0');
+    const openingBalance = Number(ob) || 0;
+
+    let inTotal = 0, outTotal = 0;
+    const txs = txsResult.transactions || [];
+    txs.forEach(function(tx) {
+      if (tx.type === 'in') inTotal += tx.amount;
+      else if (tx.type === 'out') outTotal += tx.amount;
+    });
+    const endBalance = openingBalance + inTotal - outTotal;
+
+    const stats = {
+      month: month,
+      openingBalance: openingBalance,
+      inTotal: inTotal,
+      outTotal: outTotal,
+      endBalance: endBalance,
+      count: txs.length
+    };
+    cachePut_(cacheKey, stats, CACHE_TTL_SEC);
+    return { success: true, stats: stats, source: 'storage' };
+  } catch (e) { return { success: false, message: e.toString() }; }
+}
+
 // ==================== 调试 ====================
 
 function clearAllData() {
@@ -527,8 +754,12 @@ function doGet(e) {
       cacheDel_('categories');
       cacheDel_('accounts');
       cacheDel_('all_transactions');
+      cacheDel_('all_rmb_tx');
+      cacheDel_('rmb_opening');
       cacheDel_('tx_' + month);
+      cacheDel_('rmb_tx_' + month);
       cacheDel_('stats_' + month);
+      cacheDel_('rmb_stats_' + month);
       cacheDel_('yearly_' + year);
       cacheDel_('dashboard_' + month);
     }
@@ -557,6 +788,18 @@ function doGet(e) {
         break;
       case 'getDashboard':
         result = getDashboard(month);
+        break;
+      case 'getRmbOpening':
+        result = getRmbOpeningBalance();
+        break;
+      case 'getRmbTransactions':
+        result = getRmbTransactions(month);
+        break;
+      case 'getAllRmbTransactions':
+        result = getAllRmbTransactions();
+        break;
+      case 'getRmbMonthlyStats':
+        result = getRmbMonthlyStats(month);
         break;
       case 'debug':
         result = listAllProperties();
@@ -594,6 +837,18 @@ function doPost(e) {
         break;
       case 'saveAccounts':
         result = saveAccounts(body.accounts || []);
+        break;
+      case 'setRmbOpening':
+        result = setRmbOpeningBalance(body.openingBalance);
+        break;
+      case 'addRmbTransaction':
+        result = addRmbTransaction(body);
+        break;
+      case 'updateRmbTransaction':
+        result = updateRmbTransaction(body);
+        break;
+      case 'deleteRmbTransaction':
+        result = deleteRmbTransaction(body.id);
         break;
       case 'addTransaction':
         result = addTransaction(body);

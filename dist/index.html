@@ -428,6 +428,65 @@ body {
 .report-table .profit-pos { color: var(--income); }
 .report-table .profit-neg { color: var(--expense); }
 
+/* ===== RMB 流水 (银行月结单样式 + Excel sort & filter) ===== */
+.rmb-filter-bar {
+  display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px;
+  background: var(--bg-elevated); padding: 12px 14px;
+  border-radius: var(--radius-md); box-shadow: var(--shadow-sm);
+  align-items: center;
+}
+.rmb-filter-bar label { font-size: 12px; color: var(--text-tertiary); font-weight: 600; margin-right: 4px; }
+.rmb-filter-bar .form-input,
+.rmb-filter-bar .form-select { padding: 7px 10px; font-size: 13px; min-width: 110px; }
+.rmb-filter-bar .form-input { flex: 1; min-width: 180px; }
+.rmb-toggle-group { display: flex; background: var(--bg-secondary); border-radius: var(--radius-md); padding: 3px; }
+.rmb-toggle-group button {
+  background: transparent; border: none; padding: 6px 12px; font-size: 13px; font-weight: 600;
+  color: var(--text-secondary); border-radius: 7px; cursor: pointer; font-family: inherit;
+}
+.rmb-toggle-group button.active { background: var(--accent); color: white; box-shadow: 0 2px 4px rgba(0,122,255,0.25); }
+
+.rmb-table { background: var(--bg-elevated); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden; }
+.rmb-table table { width: 100%; border-collapse: collapse; }
+.rmb-table thead { background: rgba(0,0,0,0.02); }
+.rmb-table th {
+  padding: 12px 14px; text-align: right; font-size: 12px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-tertiary);
+  border-bottom: 1px solid var(--separator); user-select: none;
+  cursor: pointer; transition: background 0.1s;
+}
+.rmb-table th:hover { background: rgba(0,0,0,0.04); }
+.rmb-table th:first-child { text-align: left; }
+.rmb-table th .sort-icon { margin-left: 4px; opacity: 0.5; font-size: 10px; }
+.rmb-table th.sorted .sort-icon { opacity: 1; color: var(--accent); }
+.rmb-table td {
+  padding: 11px 14px; text-align: right; font-variant-numeric: tabular-nums;
+  font-size: 13.5px; border-bottom: 1px solid var(--separator);
+}
+.rmb-table td:first-child { text-align: left; }
+.rmb-table tbody tr:hover { background: rgba(0,0,0,0.02); }
+.rmb-table .col-in { color: var(--income); }
+.rmb-table .col-out { color: var(--expense); }
+.rmb-table .col-balance { font-weight: 700; }
+.rmb-table .col-balance.positive { color: var(--income); }
+.rmb-table .col-balance.negative { color: var(--danger); }
+.rmb-table tfoot td {
+  padding: 14px; font-weight: 800; font-size: 14px;
+  background: rgba(0,0,0,0.04); border-top: 2px solid var(--border);
+}
+.rmb-table tfoot td:first-child { text-align: left; text-transform: uppercase; letter-spacing: 0.05em; font-size: 12px; }
+.rmb-row-action { color: var(--text-tertiary); cursor: pointer; font-size: 14px; padding: 0 4px; }
+.rmb-row-action:hover { color: var(--accent); }
+.rmb-opening-row {
+  display: flex; align-items: center; gap: 10px;
+  background: linear-gradient(135deg, rgba(0,122,255,0.05) 0%, rgba(88,86,214,0.05) 100%);
+  border: 1px solid var(--accent-soft);
+  padding: 12px 16px; border-radius: var(--radius-md);
+  margin-bottom: 14px;
+}
+.rmb-opening-row label { font-size: 12px; color: var(--text-secondary); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+.rmb-opening-row .form-input { width: 140px; padding: 6px 10px; font-size: 14px; }
+
 /* ===== Modal ===== */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); display: flex; align-items: center; justify-content: center; z-index: 1000; animation: fadeIn 0.15s ease; padding: 20px; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -573,6 +632,7 @@ body {
     <button class="tab" :class="{active: activeTab === 'transactions'}" @click="activeTab = 'transactions'">{{ t('tabTx') }}</button>
     <button class="tab" :class="{active: activeTab === 'categories'}" @click="activeTab = 'categories'">{{ t('tabCat') }}</button>
     <button class="tab" :class="{active: activeTab === 'accounts'}" @click="activeTab = 'accounts'">{{ t('tabAcc') }}</button>
+    <button class="tab" :class="{active: activeTab === 'rmb'}" @click="activeTab = 'rmb'">{{ t('tabRmb') }}</button>
     <button class="tab" :class="{active: activeTab === 'reports'}" @click="activeTab = 'reports'">{{ t('tabReport') }}</button>
   </div>
 
@@ -720,6 +780,81 @@ body {
           </div>
           <button class="acc-add" @click="openAccModal(null, section.type)">+ {{ t('addXAcc', {type: t(section.type)}) }}</button>
         </div>
+      </div>
+    </div>
+
+    <!-- Tab: RMB 流水 (银行月结单 + sort & filter) -->
+    <div v-if="activeTab === 'rmb'">
+      <div class="rmb-opening-row">
+        <label>{{ t('rmbOpening') }}</label>
+        <input class="form-input" type="number" step="0.01" v-model.number="rmbOpeningInput" :placeholder="'0.00'">
+        <button class="btn btn-secondary btn-sm" @click="saveRmbOpening">{{ t('rmbSaveOb') }}</button>
+        <span v-if="rmbOpeningBalance !== null" style="margin-left:auto; font-size:12px; color:var(--text-tertiary);">当前: <strong style="color:var(--accent);">{{ formatMoney(rmbOpeningBalance) }}</strong></span>
+      </div>
+
+      <div class="rmb-filter-bar">
+        <label>{{ t('rmbDate') }}:</label>
+        <input class="form-input" type="date" v-model="rmbFilter.from">
+        <label>~</label>
+        <input class="form-input" type="date" v-model="rmbFilter.to">
+        <input class="form-input" v-model="rmbFilter.search" :placeholder="t('rmbSearchPh')">
+        <div class="rmb-toggle-group">
+          <button :class="{active: rmbFilter.type === 'all'}" @click="rmbFilter.type = 'all'">{{ t('rmbFilterAll') }}</button>
+          <button :class="{active: rmbFilter.type === 'in'}" @click="rmbFilter.type = 'in'">{{ t('rmbFilterIn') }}</button>
+          <button :class="{active: rmbFilter.type === 'out'}" @click="rmbFilter.type = 'out'">{{ t('rmbFilterOut') }}</button>
+        </div>
+        <button class="btn btn-primary" @click="openRmbModal('in')">{{ t('rmbAddIn') }}</button>
+        <button class="btn btn-danger" @click="openRmbModal('out')">{{ t('rmbAddOut') }}</button>
+      </div>
+
+      <div class="rmb-table">
+        <table>
+          <thead>
+            <tr>
+              <th @click="sortRmb('date')" :class="{sorted: rmbSort.key === 'date'}">
+                {{ t('rmbDate') }}<span class="sort-icon">{{ rmbSort.key === 'date' ? (rmbSort.dir === 'asc' ? t('rmbSortAsc') : t('rmbSortDesc')) : t('rmbSortNone') }}</span>
+              </th>
+              <th @click="sortRmb('project')" :class="{sorted: rmbSort.key === 'project'}">
+                {{ t('rmbProject') }}<span class="sort-icon">{{ rmbSort.key === 'project' ? (rmbSort.dir === 'asc' ? t('rmbSortAsc') : t('rmbSortDesc')) : t('rmbSortNone') }}</span>
+              </th>
+              <th @click="sortRmb('out')" :class="{sorted: rmbSort.key === 'out'}">
+                {{ t('rmbOut') }}<span class="sort-icon">{{ rmbSort.key === 'out' ? (rmbSort.dir === 'asc' ? t('rmbSortAsc') : t('rmbSortDesc')) : t('rmbSortNone') }}</span>
+              </th>
+              <th @click="sortRmb('in')" :class="{sorted: rmbSort.key === 'in'}">
+                {{ t('rmbIn') }}<span class="sort-icon">{{ rmbSort.key === 'in' ? (rmbSort.dir === 'asc' ? t('rmbSortAsc') : t('rmbSortDesc')) : t('rmbSortNone') }}</span>
+              </th>
+              <th @click="sortRmb('balance')" :class="{sorted: rmbSort.key === 'balance'}">
+                {{ t('rmbBalance') }}<span class="sort-icon">{{ rmbSort.key === 'balance' ? (rmbSort.dir === 'asc' ? t('rmbSortAsc') : t('rmbSortDesc')) : t('rmbSortNone') }}</span>
+              </th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="rmbFilteredSorted.length === 0">
+              <td colspan="6" style="text-align:center; color:var(--text-tertiary); padding:30px;">{{ t('rmbNoTx') }}</td>
+            </tr>
+            <tr v-for="(row, idx) in rmbFilteredSorted" :key="row.id" @click="openRmbModal(row.type, row)" style="cursor:pointer;">
+              <td style="font-weight:500;">{{ row.date }}</td>
+              <td>
+                <div style="font-weight:600;">{{ row.project }}</div>
+                <div v-if="row.note" style="font-size:11px; color:var(--text-tertiary); margin-top:1px;">{{ row.note }}</div>
+              </td>
+              <td class="col-out">{{ row.out ? formatMoney(row.out) : '—' }}</td>
+              <td class="col-in">{{ row.in ? formatMoney(row.in) : '—' }}</td>
+              <td class="col-balance" :class="{positive: row.balance >= 0, negative: row.balance < 0}">{{ formatMoney(row.balance) }}</td>
+              <td><span class="rmb-row-action" @click.stop="deleteRmbTx(row.id)" title="删除">🗑</span></td>
+            </tr>
+          </tbody>
+          <tfoot v-if="rmbFilteredSorted.length > 0">
+            <tr>
+              <td colspan="2">{{ t('total') }} ({{ rmbFilteredSorted.length }} {{ t('count') }})</td>
+              <td class="col-out">{{ formatMoney(rmbTotals.out) }}</td>
+              <td class="col-in">{{ formatMoney(rmbTotals.in) }}</td>
+              <td class="col-balance" :class="{positive: rmbTotals.endBalance >= 0, negative: rmbTotals.endBalance < 0}">{{ formatMoney(rmbTotals.endBalance) }}</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
       </div>
     </div>
 
@@ -971,6 +1106,48 @@ body {
     </div>
   </div>
 
+  <!-- ===== RMB Modal (v1.5) ===== -->
+  <div v-if="rmbModal.open" class="modal-overlay" @click.self="closeRmbModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">{{ rmbModal.editing ? t('editAcc') : (rmbModal.form.type === 'in' ? t('rmbAddIn') : t('rmbAddOut')) }}</div>
+        <button class="modal-close" @click="closeRmbModal">×</button>
+      </div>
+      <div class="modal-body">
+        <div v-if="!rmbModal.editing" class="form-group">
+          <label class="form-label">{{ t('type') }}</label>
+          <div class="type-toggle">
+            <button :class="{active: rmbModal.form.type === 'in'}" class="company" style="background:var(--success);" @click="rmbModal.form.type = 'in'" v-show="rmbModal.form.type !== 'in'">{{ t('rmbIn') }}</button>
+            <button :class="{active: rmbModal.form.type === 'out'}" class="personal" style="background:var(--danger);" @click="rmbModal.form.type = 'out'" v-show="rmbModal.form.type !== 'out'">{{ t('rmbOut') }}</button>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">{{ t('rmbDate') }} *</label>
+            <input class="form-input" type="date" v-model="rmbModal.form.date" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">{{ t('amount') }} (RMB) *</label>
+            <input class="form-input" type="number" step="0.01" min="0" v-model.number="rmbModal.form.amount" placeholder="0.00" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">{{ t('rmbProject') }} *</label>
+          <input class="form-input" v-model="rmbModal.form.project" placeholder="如: 工资 / 房租 / 餐饮" maxlength="40" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">{{ t('note') }}</label>
+          <textarea class="form-textarea" v-model="rmbModal.form.note" :placeholder="t('notePh')" maxlength="200" rows="2"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button v-if="rmbModal.editing" class="btn btn-danger" @click="deleteRmbFromModal" style="margin-right:auto;">{{ t('delete') }}</button>
+        <button class="btn btn-secondary" @click="closeRmbModal">{{ t('cancel') }}</button>
+        <button class="btn btn-primary" @click="saveRmbTx" :disabled="!rmbModalValid">{{ t('save') }}</button>
+      </div>
+    </div>
+  </div>
+
   <div v-if="toast.show" class="toast" :class="toast.type">
     <span>{{ toast.type === 'success' ? '✓' : toast.type === 'error' ? '✕' : 'ⓘ' }}</span>
     <span>{{ toast.message }}</span>
@@ -993,7 +1170,7 @@ const I18N = {
     switchLang: '切换语言', export: '导出', add: '记账',
     connWarning: '无法连接后端 (GAS) — 数据无法保存。请检查 GAS URL 是否正确部署。',
     loading: '加载中…',
-    tabOverview: '概览', tabTx: '明细', tabCat: '类别', tabAcc: '账户', tabReport: '报表',
+    tabOverview: '概览', tabTx: '明细', tabCat: '类别', tabAcc: '账户', tabRmb: 'RMB 流水', tabReport: '报表',
     trendTitle: '年度趋势', pieTitle: '本月分类', rankTitle: '支出排行',
     noExpense: '本月暂无支出',
     noTx: '本月还没有记账', noTxDesc: '点击右上角"记账"开始记录',
@@ -1023,6 +1200,14 @@ const I18N = {
     delete: '删除', cancel: '取消', save: '保存',
     today: '今天', yesterday: '昨天',
     seedToast: '已创建默认类别和账户',
+    rmbIn: '转入金额', rmbOut: '转出金额', rmbBalance: '剩余金额', rmbProject: '项目', rmbDate: '日期',
+    rmbOpening: '期初余额', rmbSaveOb: '保存期初',
+    rmbTotalIn: '总转入', rmbTotalOut: '总转出', rmbEnd: '期末余额',
+    rmbFilterAll: '全部', rmbFilterIn: '仅转入', rmbFilterOut: '仅转出',
+    rmbSearchPh: '搜索项目或备注…', rmbFrom: '从', rmbTo: '至',
+    rmbSortAsc: '↑', rmbSortDesc: '↓', rmbSortNone: '↕',
+    rmbNoTx: '本月还没有 RMB 流水',
+    rmbAddIn: '+ 记一笔转入', rmbAddOut: '+ 记一笔转出',
     defaultCatNames: {
       cat_inc_salary: '薪水', cat_inc_other: '其他收入',
       cat_exp_rent: '租金', cat_exp_meal: '伙食', cat_exp_transport: '交通',
@@ -1041,7 +1226,7 @@ const I18N = {
     switchLang: 'Switch language', export: 'Export', add: 'Add',
     connWarning: 'Cannot connect to backend (GAS). Data will not be saved. Please check the GAS URL.',
     loading: 'Loading…',
-    tabOverview: 'Overview', tabTx: 'Transactions', tabCat: 'Categories', tabAcc: 'Accounts', tabReport: 'Reports',
+    tabOverview: 'Overview', tabTx: 'Transactions', tabCat: 'Categories', tabAcc: 'Accounts', tabRmb: 'RMB Ledger', tabReport: 'Reports',
     trendTitle: 'Yearly Trend', pieTitle: 'This Month', rankTitle: 'Top Spending',
     noExpense: 'No expenses this month',
     noTx: 'No transactions this month', noTxDesc: 'Click "Add" in the top right to start recording',
@@ -1072,6 +1257,14 @@ const I18N = {
     delete: 'Delete', cancel: 'Cancel', save: 'Save',
     today: 'Today', yesterday: 'Yesterday',
     seedToast: 'Default categories and account created',
+    rmbIn: 'In', rmbOut: 'Out', rmbBalance: 'Balance', rmbProject: 'Project', rmbDate: 'Date',
+    rmbOpening: 'Opening Balance', rmbSaveOb: 'Save',
+    rmbTotalIn: 'Total In', rmbTotalOut: 'Total Out', rmbEnd: 'Closing Balance',
+    rmbFilterAll: 'All', rmbFilterIn: 'In only', rmbFilterOut: 'Out only',
+    rmbSearchPh: 'Search project or note…', rmbFrom: 'From', rmbTo: 'To',
+    rmbSortAsc: '↑', rmbSortDesc: '↓', rmbSortNone: '↕',
+    rmbNoTx: 'No RMB transactions this month',
+    rmbAddIn: '+ Record Inflow', rmbAddOut: '+ Record Outflow',
     defaultCatNames: {
       cat_inc_salary: 'Salary', cat_inc_other: 'Other Income',
       cat_exp_rent: 'Rent', cat_exp_meal: 'Meals', cat_exp_transport: 'Transport',
@@ -1165,6 +1358,14 @@ createApp({
     const catModal = reactive({ open: false, editing: null, form: { type: 'expense', name: '', nameEn: '', color: COLOR_PRESETS[5], icon: '📦' } });
     const accModal = reactive({ open: false, editing: null, form: { type: 'company', codeFirst: '', codeSecond: '', name: '', regNo: '', ic: '', phones: [''], addresses: [''], description: '' } });
 
+    // v1.5: RMB 流水 (银行月结单)
+    const rmbTransactions = ref([]);
+    const rmbOpeningBalance = ref(0);
+    const rmbOpeningInput = ref(0);
+    const rmbFilter = reactive({ from: '', to: '', search: '', type: 'all' });
+    const rmbSort = reactive({ key: 'date', dir: 'asc' });
+    const rmbModal = reactive({ open: false, editing: null, form: { type: 'in', date: '', project: '', amount: 0, note: '' } });
+
     const toast = reactive({ show: false, message: '', type: 'info' });
     let toastTimer = null;
     function showToast(msg, type = 'info', duration = 2200) {
@@ -1236,6 +1437,46 @@ createApp({
     const accModalValid = computed(() => {
       const f = accModal.form;
       return f.codeFirst && f.codeFirst.trim() && f.codeSecond && f.codeSecond.trim() && f.name && f.name.trim() && (f.type === 'company' || f.type === 'personal');
+    });
+    const rmbModalValid = computed(() => {
+      const f = rmbModal.form;
+      return f.date && f.project && f.project.trim() && f.amount > 0 && (f.type === 'in' || f.type === 'out');
+    });
+
+    // v1.5: RMB 流水 (filter + sort + 计算 in/out/balance)
+    const rmbFilteredSorted = computed(() => {
+      let list = rmbTransactions.value.slice();
+      // Filter by date
+      if (rmbFilter.from) list = list.filter(r => r.date >= rmbFilter.from);
+      if (rmbFilter.to) list = list.filter(r => r.date <= rmbFilter.to);
+      // Filter by type
+      if (rmbFilter.type !== 'all') list = list.filter(r => r.type === rmbFilter.type);
+      // Filter by search (project or note)
+      const q = (rmbFilter.search || '').toLowerCase().trim();
+      if (q) list = list.filter(r => (r.project || '').toLowerCase().indexOf(q) >= 0 || (r.note || '').toLowerCase().indexOf(q) >= 0);
+      // Sort (注意: balance 排序按计算后)
+      const dir = rmbSort.dir === 'asc' ? 1 : -1;
+      const k = rmbSort.key;
+      list.sort(function(a, b) {
+        let va, vb;
+        if (k === 'date') { va = a.date; vb = b.date; }
+        else if (k === 'project') { va = a.project; vb = b.project; }
+        else if (k === 'in') { va = a.type === 'in' ? a.amount : 0; vb = b.type === 'in' ? b.amount : 0; }
+        else if (k === 'out') { va = a.type === 'out' ? a.amount : 0; vb = b.type === 'out' ? b.amount : 0; }
+        else if (k === 'balance') { va = a._balance || 0; vb = b._balance || 0; }
+        if (typeof va === 'string') return va.localeCompare(vb) * dir;
+        return (va - vb) * dir;
+      });
+      return list;
+    });
+
+    const rmbTotals = computed(() => {
+      let inTotal = 0, outTotal = 0;
+      rmbFilteredSorted.value.forEach(r => {
+        if (r.type === 'in') inTotal += r.amount;
+        else outTotal += r.amount;
+      });
+      return { in: inTotal, out: outTotal, endBalance: rmbOpeningBalance.value + inTotal - outTotal };
     });
 
     // 账户搜索结果 (在 txModal 用)
@@ -1643,6 +1884,99 @@ createApp({
       } catch (e) { showToast(i18n.lang === 'en' ? 'Delete failed' : '删除失败', 'error'); }
     }
 
+    // ============ v1.5: RMB 流水 functions ============
+    async function loadRmbMonth(month) {
+      try {
+        const r = await apiGet('getRmbTransactions', { month });
+        if (r.success) {
+          rmbTransactions.value = r.transactions || [];
+          localStorage.setItem('me_rmb_tx_' + month, JSON.stringify(rmbTransactions.value));
+        }
+      } catch (e) {
+        const cached = localStorage.getItem('me_rmb_tx_' + month);
+        if (cached) rmbTransactions.value = JSON.parse(cached);
+        else rmbTransactions.value = [];
+      }
+      // 同步算 balance (按日期 ASC)
+      let bal = rmbOpeningBalance.value || 0;
+      const sorted = rmbTransactions.value.slice().sort((a, b) => new Date(a.date) - new Date(b.date));
+      sorted.forEach(r => { if (r.type === 'in') bal += r.amount; else bal -= r.amount; r._balance = bal; });
+      // 把 _balance 写回原数组 (用于排序)
+      rmbTransactions.value.forEach(r => { const m = sorted.find(x => x.id === r.id); if (m) r._balance = m._balance; });
+    }
+
+    async function loadRmbOpening() {
+      try {
+        const r = await apiGet('getRmbOpening', { nocache: '1' });
+        if (r.success) {
+          rmbOpeningBalance.value = Number(r.openingBalance) || 0;
+          rmbOpeningInput.value = rmbOpeningBalance.value;
+        }
+      } catch (e) { rmbOpeningBalance.value = 0; }
+    }
+
+    async function saveRmbOpening() {
+      const v = Number(rmbOpeningInput.value);
+      if (isNaN(v)) { showToast(i18n.lang === 'en' ? 'Invalid number' : '数字无效', 'error'); return; }
+      try {
+        const r = await apiPostWithRetry('setRmbOpening', { openingBalance: v });
+        if (r.success) {
+          rmbOpeningBalance.value = r.openingBalance;
+          showToast(i18n.lang === 'en' ? 'Opening balance saved' : '期初余额已保存', 'success');
+          await loadRmbMonth(currentMonth.value);
+        } else showToast((i18n.lang === 'en' ? 'Save failed: ' : '保存失败: ') + r.message, 'error');
+      } catch (e) { showToast((i18n.lang === 'en' ? 'Network error' : '网络错误'), 'error'); }
+    }
+
+    function openRmbModal(type, existingTx) {
+      if (existingTx) {
+        rmbModal.editing = existingTx;
+        rmbModal.form = { type: existingTx.type, date: existingTx.date, project: existingTx.project, amount: existingTx.amount, note: existingTx.note || '' };
+      } else {
+        rmbModal.editing = null;
+        rmbModal.form = { type: type || 'in', date: currentMonth.value + '-' + String(today.getDate()).padStart(2, '0'), project: '', amount: 0, note: '' };
+      }
+      rmbModal.open = true;
+    }
+    function closeRmbModal() { rmbModal.open = false; rmbModal.editing = null; }
+    async function saveRmbTx() {
+      if (!rmbModalValid.value) { showToast(i18n.lang === 'en' ? 'Fill all fields' : '请填写完整', 'error'); return; }
+      try {
+        if (rmbModal.editing) {
+          const r = await apiPostWithRetry('updateRmbTransaction', { id: rmbModal.editing.id, ...rmbModal.form });
+          if (r.success) { showToast(i18n.lang === 'en' ? 'Updated' : '已更新', 'success'); closeRmbModal(); await loadRmbMonth(currentMonth.value); }
+          else showToast((i18n.lang === 'en' ? 'Update failed: ' : '更新失败: ') + r.message, 'error');
+        } else {
+          const r = await apiPostWithRetry('addRmbTransaction', rmbModal.form);
+          if (r.success) { showToast(i18n.lang === 'en' ? 'Saved' : '已记录', 'success'); closeRmbModal(); await loadRmbMonth(currentMonth.value); }
+          else showToast((i18n.lang === 'en' ? 'Save failed: ' : '保存失败: ') + r.message, 'error');
+        }
+      } catch (e) { showToast((i18n.lang === 'en' ? 'Network error: ' : '网络错误: ') + e.message, 'error'); }
+    }
+    async function deleteRmbFromModal() {
+      if (!rmbModal.editing) return;
+      if (!confirm(i18n.lang === 'en' ? 'Delete this row?' : '确定删除这行?')) return;
+      try {
+        const r = await apiPostWithRetry('deleteRmbTransaction', { id: rmbModal.editing.id });
+        if (r.success) { showToast(i18n.lang === 'en' ? 'Deleted' : '已删除', 'success'); closeRmbModal(); await loadRmbMonth(currentMonth.value); }
+      } catch (e) { showToast(i18n.lang === 'en' ? 'Delete failed' : '删除失败', 'error'); }
+    }
+    async function deleteRmbTx(id) {
+      if (!confirm(i18n.lang === 'en' ? 'Delete this row?' : '确定删除这行?')) return;
+      try {
+        const r = await apiPostWithRetry('deleteRmbTransaction', { id: id });
+        if (r.success) { showToast(i18n.lang === 'en' ? 'Deleted' : '已删除', 'success'); await loadRmbMonth(currentMonth.value); }
+      } catch (e) { showToast(i18n.lang === 'en' ? 'Delete failed' : '删除失败', 'error'); }
+    }
+    function sortRmb(key) {
+      if (rmbSort.key === key) {
+        rmbSort.dir = rmbSort.dir === 'asc' ? 'desc' : 'asc';
+      } else {
+        rmbSort.key = key;
+        rmbSort.dir = 'asc';
+      }
+    }
+
     function downloadFile(filename, content, mime) {
       const blob = new Blob([content], { type: mime });
       const url = URL.createObjectURL(blob);
@@ -1677,10 +2011,20 @@ createApp({
         localStorage.setItem(STORAGE_KEYS.transactions + '_' + currentMonth.value, JSON.stringify(transactions.value));
       }
       if (yr.success) yearlyData.value = yr.months || [];
+      // v1.5: 同步 RMB 期初 + 当月流水
+      const [opn, rmb] = await Promise.all([
+        apiGet('getRmbOpening', { nocache: '1' }),
+        apiGet('getRmbTransactions', { month: currentMonth.value, nocache: '1' })
+      ]);
+      if (opn.success) {
+        rmbOpeningBalance.value = opn.opening || 0;
+        rmbOpeningInput.value = opn.opening || 0;
+      }
+      if (rmb.success) rmbTransactions.value = rmb.transactions || [];
       await nextTick();
       renderCharts();
       renderYearlyChart();
-      const cnt = (cats.success ? cats.categories.length : 0) + 'C / ' + (accs.success ? accs.accounts.length : 0) + 'A / ' + (dash.success ? dash.transactions.length : 0) + 'T';
+      const cnt = (cats.success ? cats.categories.length : 0) + 'C / ' + (accs.success ? accs.accounts.length : 0) + 'A / ' + (dash.success ? dash.transactions.length : 0) + 'T / ' + (rmb.success ? rmb.transactions.length : 0) + 'R';
       console.log('[forceRefresh] done:', cnt);
       showToast(t('refreshed') + ' (' + cnt + ')', 'success', 1800);
     }
@@ -1726,6 +2070,7 @@ createApp({
         if (yearlyData.value.length === 0) await loadYearlyStats();
         else { await nextTick(); renderCharts(); }
       } else if (v === 'reports') loadYearlyStats();
+      else if (v === 'rmb') { await loadRmbOpening(); await loadRmbMonth(currentMonth.value); }
     });
     watch(currentMonth, () => { if (activeTab.value === 'reports') loadYearlyStats(); });
 
@@ -1750,6 +2095,9 @@ createApp({
         await loadCategories();
         await loadAccounts();
         await loadMonth(currentMonth.value);
+        // v1.5: RMB 期初 + 当月流水
+        await loadRmbOpening();
+        await loadRmbMonth(currentMonth.value);
         if (activeTab.value === 'reports') loadYearlyStats();
         apiGet('getYearlyStats', { year: currentYear.value }).then(r => {
           if (r.success) { yearlyData.value = r.months || []; if (activeTab.value === 'overview') renderCharts(); }
@@ -1782,7 +2130,12 @@ createApp({
       formatMoney, formatDateText,
       exportJSON, exportCSV, confirmClearAll,
       forceRefresh,
-      loadYearlyStats
+      loadYearlyStats,
+      // v1.5: RMB 流水
+      rmbTransactions, rmbOpeningBalance, rmbOpeningInput, rmbFilter, rmbSort, rmbModal,
+      rmbModalValid, rmbFilteredSorted, rmbTotals,
+      loadRmbMonth, loadRmbOpening, saveRmbOpening,
+      openRmbModal, closeRmbModal, saveRmbTx, deleteRmbFromModal, deleteRmbTx, sortRmb
     };
   }
 }).mount('#app');
