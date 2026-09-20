@@ -2017,8 +2017,8 @@ createApp({
         apiGet('getRmbTransactions', { month: currentMonth.value, nocache: '1' })
       ]);
       if (opn.success) {
-        rmbOpeningBalance.value = opn.opening || 0;
-        rmbOpeningInput.value = opn.opening || 0;
+        rmbOpeningBalance.value = Number(opn.openingBalance) || 0;
+        rmbOpeningInput.value = rmbOpeningBalance.value;
       }
       if (rmb.success) rmbTransactions.value = rmb.transactions || [];
       await nextTick();
