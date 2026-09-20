@@ -31,7 +31,7 @@ monthly-expenses/
 - 前端: https://ongsami-create.github.io/Monthly-Expenses/
 - 后端 GAS: `MonthlyExpenses` 项目
   - Web App URL: `https://script.google.com/macros/s/AKfycbz_TFplnykqcvhgdO7L8HsjDUgGr5jMrNv8Y8RF2cAo7njZFJhbe6QpxNWU3R9De0_LtQ/exec`
-  - Version: 1.0.0 (2026-08-22 init)
+  - Version: 1.5.0 (2026-09-20 RMB 流水)
 
 **关键路径**:
 - 本地源: `C:\Users\sami_\.minimax-agent-cn\projects\33\monthly-expenses\`
