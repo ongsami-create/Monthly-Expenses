@@ -1049,7 +1049,7 @@ body {
       <div class="modal-footer">
         <button v-if="txModal.editing" class="btn btn-danger" @click="deleteTx" style="margin-right:auto;">{{ t('delete') }}</button>
         <button class="btn btn-secondary" @click="closeTxModal">{{ t('cancel') }}</button>
-        <button class="btn btn-primary" @click="saveTx" :disabled="!txModalValid">{{ t('save') }}</button>
+        <button class="btn btn-primary" @click="saveTx" :disabled="!txModalValid || savingTx">{{ t('save') }}</button>
       </div>
     </div>
   </div>
@@ -1202,7 +1202,7 @@ body {
       <div class="modal-footer">
         <button v-if="rmbModal.editing" class="btn btn-danger" @click="deleteRmbFromModal" style="margin-right:auto;">{{ t('delete') }}</button>
         <button class="btn btn-secondary" @click="closeRmbModal">{{ t('cancel') }}</button>
-        <button class="btn btn-primary" @click="saveRmbTx" :disabled="!rmbModalValid">{{ t('save') }}</button>
+        <button class="btn btn-primary" @click="saveRmbTx" :disabled="!rmbModalValid || savingRmb">{{ t('save') }}</button>
       </div>
     </div>
   </div>
@@ -1428,6 +1428,7 @@ createApp({
     const rmbModal = reactive({ open: false, editing: null, form: { type: 'in', date: '', project: '', amount: 0, note: '' } });
 
     const toast = reactive({ show: false, message: '', type: 'info' });
+    const savingTx = ref(false), savingRmb = ref(false);  // v1.7.7: 防重复提交
     let toastTimer = null;
     function showToast(msg, type = 'info', duration = 2200) {
       toast.message = msg; toast.type = type; toast.show = true;
@@ -1809,8 +1810,10 @@ createApp({
     function selectTxAccount(acc) { txModal.form.accountId = acc.id; txModal.form.accSearch = ''; txModal.form.accShowResults = false; }
     function closeTxModal() { txModal.open = false; txModal.editing = null; }
     async function saveTx() {
+      if (savingTx.value) return;  // v1.7.7: 防双击重复提交
       console.log('[saveTx]', JSON.parse(JSON.stringify(txModal.form)));
       if (!txModalValid.value) { showToast(i18n.lang === 'en' ? 'Please fill all fields' : '请填写完整', 'error'); return; }
+      savingTx.value = true;
       try {
         if (txModal.editing) {
           const r = await apiPostWithRetry('updateTransaction', { id: txModal.editing.id, ...txModal.form });
@@ -1822,6 +1825,7 @@ createApp({
           else { showToast((i18n.lang === 'en' ? 'Save failed: ' : '保存失败: ') + (r.message || ''), 'error', 5000); }
         }
       } catch (e) { showToast((i18n.lang === 'en' ? 'Network error: ' : '网络错误: ') + e.message, 'error', 5000); }
+      finally { savingTx.value = false; }
     }
     async function deleteTx() {
       if (!txModal.editing) return;
@@ -2023,7 +2027,9 @@ createApp({
     }
     function closeRmbModal() { rmbModal.open = false; rmbModal.editing = null; }
     async function saveRmbTx() {
+      if (savingRmb.value) return;  // v1.7.7: 防双击重复提交
       if (!rmbModalValid.value) { showToast(i18n.lang === 'en' ? 'Fill all fields' : '请填写完整', 'error'); return; }
+      savingRmb.value = true;
       try {
         if (rmbModal.editing) {
           const r = await apiPostWithRetry('updateRmbTransaction', { id: rmbModal.editing.id, ...rmbModal.form });
@@ -2035,6 +2041,7 @@ createApp({
           else showToast((i18n.lang === 'en' ? 'Save failed: ' : '保存失败: ') + r.message, 'error');
         }
       } catch (e) { showToast((i18n.lang === 'en' ? 'Network error: ' : '网络错误: ') + e.message, 'error'); }
+      finally { savingRmb.value = false; }
     }
     async function deleteRmbFromModal() {
       if (!rmbModal.editing) return;
