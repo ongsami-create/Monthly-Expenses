@@ -58,7 +58,8 @@
   --radius-full: 9999px;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { font-size: 14.5px; }
+html, body { font-size: 14.5px; height: 100%; overflow: hidden; }
+#app { height: 100%; display: flex; flex-direction: column; }
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', 'PingFang SC', 'Microsoft YaHei', sans-serif;
   background: var(--bg);
@@ -68,7 +69,6 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  min-height: 100vh;
   overflow-x: hidden;
 }
 * { scroll-behavior: smooth; }
@@ -646,31 +646,280 @@ body {
 .month-pick-btn { background: var(--bg-secondary); border: none; padding: 14px; border-radius: var(--radius-md); font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; color: var(--text); transition: all 0.12s; }
 .month-pick-btn:hover { background: var(--accent-soft); color: var(--accent); }
 .month-pick-btn.active { background: linear-gradient(180deg, #0A84FF 0%, #007AFF 100%); color: white; box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3); }
+
+/* ===== APK-only RMB 流水样式 (v1.4 APK) ===== */
+.topbar-compact {
+  padding: 2px 10px;
+  min-height: 30px;
+  gap: 0;
+  display: flex;
+  align-items: center;
+  background: var(--bg-translucent);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid var(--separator);
+  font-size: 11px;
+}
+.topbar-compact .topbar-btn {
+  flex: 0 0 auto;
+  width: 32px;
+  padding: 2px 0;
+  text-align: center;
+  border-radius: 6px;
+}
+.topbar-compact .logo-block {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: 0 8px;
+}
+.topbar-compact .logo-block .brand-mark { height: 30px; }
+.topbar-compact .logo-block .logo-sub {
+  font-size: 5px;
+  color: var(--text-tertiary);
+  margin-top: 0;
+  line-height: 1;
+  letter-spacing: 0.5px;
+}
+.topbar-compact .btn-icon.refreshing {
+  animation: spin 1s linear infinite;
+  color: #007AFF;
+}
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+.content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: 0;
+  max-width: none;
+  margin: 0;
+}
+
+.rmb-pane {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: 6px 6px 0;
+  background: var(--bg);
+  gap: 5px;
+}
+
+.rmb-top-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 0;
+}
+.rmb-top-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 15px 8px;
+  border: none;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.12s;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+.rmb-top-btn:active { transform: scale(0.97); }
+.rmb-top-btn .arrow { font-size: 13px; line-height: 1; }
+.rmb-top-btn.in {
+  background: linear-gradient(135deg, #30D158 0%, #2BA847 100%);
+  color: white;
+}
+.rmb-top-btn.out {
+  background: linear-gradient(135deg, #FF3B30 0%, #D92D20 100%);
+  color: white;
+}
+
+.rmb-date-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+}
+.rmb-date-row .cal-icon { font-size: 12px; line-height: 1; }
+.rmb-date-row .dash { color: var(--text-tertiary); font-size: 10px; }
+
+.rmb-search-row { display: block; }
+.rmb-search {
+  width: 100%;
+  padding: 5px 10px;
+  border: 1px solid var(--separator);
+  border-radius: 6px;
+  font-size: 11px;
+  font-family: inherit;
+  background: var(--bg-elevated);
+  color: var(--text);
+}
+.rmb-search:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.rmb-input {
+  flex: 1;
+  padding: 4px 8px;
+  border: 1px solid var(--separator);
+  border-radius: 6px;
+  font-size: 11px;
+  font-family: inherit;
+  background: var(--bg-elevated);
+  color: var(--text);
+  min-width: 0;
+}
+
+.rmb-chip-row {
+  display: flex;
+  gap: 4px;
+}
+.rmb-chip-row button {
+  flex: 1;
+  padding: 3px 2px;
+  border: 1px solid var(--separator);
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.rmb-chip-row button.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.rmb-pane .rmb-table {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  background: var(--bg-elevated);
+  border-radius: 8px;
+  border: 1px solid var(--separator);
+  min-height: 0;
+}
+.rmb-pane .rmb-table table { width: 100%; border-collapse: collapse; }
+.rmb-pane .rmb-table th, .rmb-pane .rmb-table td {
+  padding: 1px 2px;
+  font-size: 7px;
+  border-bottom: 1px solid var(--separator);
+  line-height: 1.3;
+}
+/* date 和 project 列紧凑 (居中靠拢) */
+.rmb-pane .rmb-table th:first-child,
+.rmb-pane .rmb-table td:first-child { padding-right: 1px; padding-left: 3px; }
+.rmb-pane .rmb-table th:nth-child(2),
+.rmb-pane .rmb-table td:nth-child(2) { padding-left: 1px; padding-right: 4px; }
+.rmb-pane .rmb-table th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-secondary);
+  font-weight: 600;
+  color: var(--text-secondary);
+  z-index: 1;
+  font-size: 9px;
+}
+.rmb-pane .rmb-table th .sort-icon { font-size: 8px; margin-left: 2px; color: var(--text-tertiary); }
+.rmb-pane .rmb-table th.sorted .sort-icon { color: var(--accent); }
+.rmb-pane .rmb-table tbody tr:active { background: rgba(0, 122, 255, 0.08); }
+.rmb-pane .rmb-table .cell-money {
+  text-align: right;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.rmb-pane .rmb-table .cell-in { color: var(--success); font-size: 7px; }
+.rmb-pane .rmb-table .cell-out { color: var(--danger); font-size: 7px; }
+.rmb-pane .rmb-table .cell-date {
+  font-weight: 500;
+  font-size: 7px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.rmb-pane .rmb-table .cell-balance {
+  text-align: right;
+  font-weight: 600;
+  font-size: 7px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.rmb-pane .rmb-table .cell-balance.positive { color: var(--success); }
+.rmb-pane .rmb-table .cell-balance.negative { color: var(--danger); }
+.rmb-pane .rmb-table .cell-x {
+  color: var(--danger);
+  font-size: 5px;
+  text-align: center;
+  width: 14px;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.12s;
+  user-select: none;
+}
+.rmb-pane .rmb-table .cell-x:hover, .rmb-pane .rmb-table .cell-x:active { opacity: 1; }
+
+.rmb-totals-footer {
+  display: grid;
+  grid-template-columns: auto 1fr 1fr 1fr;
+  gap: 4px;
+  padding: 4px 8px;
+  padding-bottom: calc(22px + env(safe-area-inset-bottom, 0px));
+  background: var(--bg-translucent);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  border-top: 1px solid var(--separator);
+  font-size: 9px;
+  margin: 0 -6px -10px;
+  position: sticky;
+  bottom: 0;
+}
+.rmb-totals-footer .totals-cell {
+  text-align: center;
+  min-width: 0;
+}
+.rmb-totals-footer .totals-cell .k {
+  font-size: 9px;
+  color: var(--text-tertiary);
+  line-height: 1;
+  margin-bottom: 1px;
+}
+.rmb-totals-footer .totals-cell .v {
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+}
+.rmb-totals-footer .totals-cell.count .v { color: var(--text-secondary); font-weight: 600; }
+.rmb-totals-footer .totals-cell .v.out { color: var(--danger); }
+.rmb-totals-footer .totals-cell .v.in { color: var(--success); }
+.rmb-totals-footer .totals-cell .v.positive { color: var(--success); }
+.rmb-totals-footer .totals-cell .v.negative { color: var(--danger); }
 </style>
 </head>
 <body>
 <div id="app" v-cloak>
   <div v-if="!connected && apiChecked" class="banner">⚠️ {{ t('connWarning') }}</div>
 
-  <div class="topbar">
-    <div class="brand">
+  <div class="topbar topbar-compact">
+    <button class="btn-icon topbar-btn" :class="{refreshing}" @click="forceRefresh" :title="t('refresh')">↻</button>
+    <div class="logo-block">
       <img class="brand-mark" src="squirrel-care.png" alt="Squirrel Care" @error="$event.target.style.display='none'">
-      <div class="brand-text">
-        <h1>{{ t('title') }}</h1>
-        <div class="sub">{{ yearMonthText }}</div>
-      </div>
+      <div class="logo-sub">RMB流水</div>
     </div>
-    <div class="month-switcher">
-      <button class="month-btn" @click="changeMonth(-1)">‹</button>
-      <span class="month-label" @click="monthPickerOpen = !monthPickerOpen">{{ yearMonthText }}</span>
-      <button class="month-btn" @click="changeMonth(1)">›</button>
-    </div>
-    <div class="topbar-actions">
-      <button class="btn-icon" @click="forceRefresh" :title="t('refresh')" style="font-size:18px;">↻</button>
-      <button class="lang-toggle" @click="toggleLang">{{ i18n.lang === 'zh' ? 'EN' : '中' }}</button>
-      <button class="btn btn-secondary" @click="exportJSON"><span>📥</span> <span class="label">{{ t('export') }}</span></button>
-      <button class="btn btn-primary" @click="openTxModal()"><span style="font-size:18px; line-height:1;">+</span> <span class="label">{{ t('add') }}</span></button>
-    </div>
+    <button class="lang-toggle topbar-btn" @click="toggleLang">{{ i18n.lang === 'zh' ? 'EN' : '中' }}</button>
   </div>
 
   <div v-if="monthPickerOpen" class="month-picker-overlay" @click.self="monthPickerOpen = false">
@@ -686,7 +935,7 @@ body {
     </div>
   </div>
 
-  <div class="tabs">
+  <div class="tabs" v-if="false">
     <button class="tab" :class="{active: activeTab === 'overview'}" @click="activeTab = 'overview'">{{ t('tabOverview') }}</button>
     <button class="tab" :class="{active: activeTab === 'transactions'}" @click="activeTab = 'transactions'">{{ t('tabTx') }}</button>
     <button class="tab" :class="{active: activeTab === 'categories'}" @click="activeTab = 'categories'">{{ t('tabCat') }}</button>
@@ -842,30 +1091,42 @@ body {
       </div>
     </div>
 
-    <!-- Tab: RMB 流水 (银行月结单 + sort & filter) -->
-    <div v-if="activeTab === 'rmb'">
-      <div class="rmb-opening-row">
-        <label>{{ t('rmbOpening') }}</label>
-        <input class="form-input" type="number" step="0.01" v-model.number="rmbOpeningInput" :placeholder="'0.00'">
-        <button class="btn btn-secondary btn-sm" @click="saveRmbOpening">{{ t('rmbSaveOb') }}</button>
-        <span v-if="rmbOpeningBalance !== null" style="margin-left:auto; font-size:12px; color:var(--text-tertiary);">当前: <strong style="color:var(--accent);">{{ formatMoney(rmbOpeningBalance) }}</strong></span>
+    <!-- APK: RMB 流水 (银行月结单 + sort & filter) — 唯一显示的 Tab -->
+    <div class="rmb-pane">
+      <!-- 顶部 2 大按钮 (左右分屏) -->
+      <div class="rmb-top-actions">
+        <button class="rmb-top-btn in" @click="openRmbModal('in')">
+          <span class="arrow">↗</span>
+          <span class="label">{{ t('rmbAddIn') }}</span>
+        </button>
+        <button class="rmb-top-btn out" @click="openRmbModal('out')">
+          <span class="arrow">↘</span>
+          <span class="label">{{ t('rmbAddOut') }}</span>
+        </button>
       </div>
 
-      <div class="rmb-filter-bar">
-        <label>{{ t('rmbDate') }}:</label>
-        <input class="form-input" type="date" v-model="rmbFilter.from">
-        <label>~</label>
-        <input class="form-input" type="date" v-model="rmbFilter.to">
-        <input class="form-input" v-model="rmbFilter.search" :placeholder="t('rmbSearchPh')">
-        <div class="rmb-toggle-group">
-          <button :class="{active: rmbFilter.type === 'all'}" @click="rmbFilter.type = 'all'">{{ t('rmbFilterAll') }}</button>
-          <button :class="{active: rmbFilter.type === 'in'}" @click="rmbFilter.type = 'in'">{{ t('rmbFilterIn') }}</button>
-          <button :class="{active: rmbFilter.type === 'out'}" @click="rmbFilter.type = 'out'">{{ t('rmbFilterOut') }}</button>
-        </div>
-        <button class="btn btn-primary" @click="openRmbModal('in')">{{ t('rmbAddIn') }}</button>
-        <button class="btn btn-danger" @click="openRmbModal('out')">{{ t('rmbAddOut') }}</button>
+      <!-- iOS 紧凑 filter row: 日期 from / 日期 to (with 📅 icon) -->
+      <div class="rmb-date-row">
+        <span class="cal-icon">📅</span>
+        <input class="rmb-input" type="date" v-model="rmbFilter.from">
+        <span class="dash">─</span>
+        <span class="cal-icon">📅</span>
+        <input class="rmb-input" type="date" v-model="rmbFilter.to">
       </div>
 
+      <!-- 关键字搜索 -->
+      <div class="rmb-search-row">
+        <input class="rmb-search" v-model="rmbFilter.search" :placeholder="t('rmbSearchPh')">
+      </div>
+
+      <!-- 类型 chip: 全部 / 仅转入 / 仅转出 -->
+      <div class="rmb-chip-row">
+        <button :class="{active: rmbFilter.type === 'all'}" @click="rmbFilter.type = 'all'">{{ t('rmbFilterAll') }}</button>
+        <button :class="{active: rmbFilter.type === 'in'}" @click="rmbFilter.type = 'in'">{{ t('rmbFilterIn') }}</button>
+        <button :class="{active: rmbFilter.type === 'out'}" @click="rmbFilter.type = 'out'">{{ t('rmbFilterOut') }}</button>
+      </div>
+
+      <!-- 流水列表 (满屏占剩余空间) -->
       <div class="rmb-table">
         <table>
           <thead>
@@ -876,44 +1137,52 @@ body {
               <th @click="sortRmb('project')" :class="{sorted: rmbSort.key === 'project'}">
                 {{ t('rmbProject') }}<span class="sort-icon">{{ rmbSort.key === 'project' ? (rmbSort.dir === 'asc' ? t('rmbSortAsc') : t('rmbSortDesc')) : t('rmbSortNone') }}</span>
               </th>
-              <th @click="sortRmb('out')" :class="{sorted: rmbSort.key === 'out'}">
-                {{ t('rmbOut') }}<span class="sort-icon">{{ rmbSort.key === 'out' ? (rmbSort.dir === 'asc' ? t('rmbSortAsc') : t('rmbSortDesc')) : t('rmbSortNone') }}</span>
-              </th>
-              <th @click="sortRmb('in')" :class="{sorted: rmbSort.key === 'in'}">
-                {{ t('rmbIn') }}<span class="sort-icon">{{ rmbSort.key === 'in' ? (rmbSort.dir === 'asc' ? t('rmbSortAsc') : t('rmbSortDesc')) : t('rmbSortNone') }}</span>
-              </th>
+              <th>转入/转出</th>
               <th @click="sortRmb('balance')" :class="{sorted: rmbSort.key === 'balance'}">
-                {{ t('rmbBalance') }}<span class="sort-icon">{{ rmbSort.key === 'balance' ? (rmbSort.dir === 'asc' ? t('rmbSortAsc') : t('rmbSortDesc')) : t('rmbSortNone') }}</span>
+                剩余<span class="sort-icon">{{ rmbSort.key === 'balance' ? (rmbSort.dir === 'asc' ? t('rmbSortAsc') : t('rmbSortDesc')) : t('rmbSortNone') }}</span>
               </th>
               <th></th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="rmbFilteredSorted.length === 0">
-              <td colspan="6" style="text-align:center; color:var(--text-tertiary); padding:30px;">{{ t('rmbNoTx') }}</td>
+              <td colspan="5" style="text-align:center; color:var(--text-tertiary); padding:20px;">{{ t('rmbNoTx') }}</td>
             </tr>
             <tr v-for="(row, idx) in rmbFilteredSorted" :key="row.id" @click="openRmbModal(row.type, row)" style="cursor:pointer;">
-              <td style="font-weight:500;">{{ row.date }}</td>
+              <td class="cell-date">{{ row.date }}</td>
               <td>
                 <div style="font-weight:600;">{{ row.project }}</div>
-                <div v-if="row.note" style="font-size:11px; color:var(--text-tertiary); margin-top:1px;">{{ row.note }}</div>
+                <div v-if="row.note" style="font-size:8px; color:var(--text-tertiary); margin-top:0;">{{ row.note }}</div>
               </td>
-              <td class="col-out">{{ row.type === 'out' ? formatMoney(row.amount) : '—' }}</td>
-              <td class="col-in">{{ row.type === 'in' ? formatMoney(row.amount) : '—' }}</td>
-              <td class="col-balance" :class="{positive: (row._balance || 0) >= 0, negative: (row._balance || 0) < 0}">{{ formatMoney(row._balance || 0) }}</td>
-              <td><span class="rmb-row-action" @click.stop="deleteRmbTx(row.id)" title="删除">🗑</span></td>
+              <td class="cell-money">
+                <div v-if="row.type === 'in'" class="cell-in">+{{ formatMoney(row.amount) }}</div>
+                <div v-else-if="row.type === 'out'" class="cell-out">-{{ formatMoney(row.amount) }}</div>
+              </td>
+              <td class="cell-balance" :class="{positive: (row._balance || 0) >= 0, negative: (row._balance || 0) < 0}">{{ row._balance !== undefined ? formatMoney(row._balance) : '—' }}</td>
+              <td class="cell-x" @click.stop="deleteRmbTx(row.id)">✕</td>
             </tr>
           </tbody>
-          <tfoot v-if="rmbFilteredSorted.length > 0">
-            <tr>
-              <td colspan="2">{{ t('total') }} ({{ rmbFilteredSorted.length }} {{ t('count') }})</td>
-              <td class="col-out">{{ formatMoney(rmbTotals.out) }}</td>
-              <td class="col-in">{{ formatMoney(rmbTotals.in) }}</td>
-              <td class="col-balance" :class="{positive: rmbTotals.endBalance >= 0, negative: rmbTotals.endBalance < 0}">{{ formatMoney(rmbTotals.endBalance) }}</td>
-              <td></td>
-            </tr>
-          </tfoot>
         </table>
+      </div>
+
+      <!-- 总计 footer (4 列 grid, 完整 RM 格式) -->
+      <div v-if="rmbFilteredSorted.length > 0" class="rmb-totals-footer">
+        <div class="totals-cell count">
+          <div class="k">共</div>
+          <div class="v">{{ rmbFilteredSorted.length }}</div>
+        </div>
+        <div class="totals-cell">
+          <div class="k">转出</div>
+          <div class="v out">{{ formatMoney(rmbTotals.out) }}</div>
+        </div>
+        <div class="totals-cell">
+          <div class="k">转入</div>
+          <div class="v in">{{ formatMoney(rmbTotals.in) }}</div>
+        </div>
+        <div class="totals-cell">
+          <div class="k">余额</div>
+          <div class="v balance" :class="{positive: rmbTotals.endBalance >= 0, negative: rmbTotals.endBalance < 0}">{{ formatMoney(rmbTotals.endBalance) }}</div>
+        </div>
       </div>
     </div>
 
@@ -1348,6 +1617,13 @@ function formatMoney(n) {
   if (typeof n !== 'number' || isNaN(n)) n = 0;
   return 'RM ' + n.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
+function formatMoneyShort(n) {
+  if (typeof n !== 'number' || isNaN(n)) n = 0;
+  const a = Math.abs(n);
+  if (a >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+  if (a >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+  return n.toFixed(0);
+}
 function formatDateText(iso, lang) {
   if (!iso) return '';
   const d = new Date(iso);
@@ -1401,7 +1677,9 @@ createApp({
     function updateDocTitle() { document.title = t('title') + ' · ' + t('subtitle'); }
 
     const apiChecked = ref(false), connected = ref(true), loading = ref(false);
-    const activeTab = ref(localStorage.getItem(STORAGE_KEYS.tab) || 'overview');
+    const refreshing = ref(false);  // v1.4: 顶栏 ↻ 同步时旋转 + 变青
+    // APK-only: 强制进入 RMB Tab (隐藏其他 4 个 Tab)
+    const activeTab = ref('rmb');
     const today = new Date();
     const defaultMonth = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0');
     const currentMonth = ref(localStorage.getItem(STORAGE_KEYS.month) || defaultMonth);
@@ -2073,6 +2351,8 @@ createApp({
     // v1.4: 强制刷新云端数据 (跨设备同步)
     // 传 nocache=1 给 GAS, 跳过 5s CacheService, 实时读 PropertiesService
     async function forceRefresh() {
+      if (refreshing.value) return;
+      refreshing.value = true;
       console.log('[forceRefresh] start');
       const r = await apiGet('ping', { nocache: '1' });
       if (!r.success) {
@@ -2110,6 +2390,7 @@ createApp({
       const cnt = (cats.success ? cats.categories.length : 0) + 'C / ' + (accs.success ? accs.accounts.length : 0) + 'A / ' + (dash.success ? dash.transactions.length : 0) + 'T / ' + (rmb.success ? rmb.transactions.length : 0) + 'R';
       console.log('[forceRefresh] done:', cnt);
       showToast(t('refreshed') + ' (' + cnt + ')', 'success', 1800);
+      refreshing.value = false;
     }
     function exportJSON() {
       const data = { exportedAt: new Date().toISOString(), version: '1.2', categories: categories.value, accounts: accounts.value, transactions: transactions.value };
@@ -2209,9 +2490,9 @@ createApp({
       openAccModal, closeAccModal, saveAccount, deleteAccount,
       addAccPhone, removeAccPhone, addAccAddress, removeAccAddress,
       accSearchResults, searchAccount, selectTxAccount,
-      formatMoney, formatDateText,
+      formatMoney, formatMoneyShort, formatDateText,
       exportJSON, exportCSV, confirmClearAll,
-      forceRefresh,
+      forceRefresh, refreshing,
       loadYearlyStats,
       // v1.5: RMB 流水
       rmbTransactions, rmbOpeningBalance, rmbOpeningInput, rmbFilter, rmbSort, rmbModal,

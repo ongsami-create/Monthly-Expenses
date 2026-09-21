@@ -1,5 +1,5 @@
-// RMB PWA Service Worker (cache-first, app-shell 模式)
-const CACHE_NAME = 'rmb-v1.5';
+// RMB PWA Service Worker (network-first, 永远拉新版)
+const CACHE_NAME = 'rmb-v1.7';
 const APP_SHELL = [
   './',
   './index.html',
@@ -27,23 +27,20 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
-  // GAS API 永远走网络,绕过 SW cache
   const url = new URL(req.url);
+  // GAS API 永远走网络,绕过 SW cache
   if (url.hostname === 'script.google.com' || url.hostname === 'script.googleusercontent.com') {
     e.respondWith(fetch(req).catch(() => new Response(JSON.stringify({ success: false, message: 'offline', offline: true }), { status: 503, headers: { 'Content-Type': 'application/json' } })));
     return;
   }
-  // App shell: cache-first + 后台 revalidate
+  // App shell: network-first (永远拉新版), 离线时 fallback cache
   e.respondWith(
-    caches.match(req).then(cached => {
-      const fetchPromise = fetch(req).then(resp => {
-        if (resp && resp.status === 200 && resp.type === 'basic') {
-          const clone = resp.clone();
-          caches.open(CACHE_NAME).then(c => c.put(req, clone));
-        }
-        return resp;
-      }).catch(() => cached);
-      return cached || fetchPromise;
-    })
+    fetch(req).then(resp => {
+      if (resp && resp.status === 200 && resp.type === 'basic') {
+        const clone = resp.clone();
+        caches.open(CACHE_NAME).then(c => c.put(req, clone));
+      }
+      return resp;
+    }).catch(() => caches.match(req))
   );
 });

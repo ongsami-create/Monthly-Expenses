@@ -11,6 +11,9 @@ android/
 *.apk
 *.aab
 
+# APK-only web (独立维护,不要被 dist 覆盖)
+www/
+
 # IDE
 .idea/
 *.iml
