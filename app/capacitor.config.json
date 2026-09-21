@@ -1,0 +1,11 @@
+{
+  "appId": "com.squirrel.rmbledger",
+  "appName": "RMB 流水",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "backgroundColor": "#F5F5F7"
+  }
+}

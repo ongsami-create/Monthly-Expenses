@@ -1,0 +1,18 @@
+{
+  "name": "RMB 流水 - Monthly Expenses",
+  "short_name": "RMB",
+  "description": "银行月结单式 RMB 流水记账,期初余额 + running balance + Excel sort & filter",
+  "start_url": "./?utm_source=pwa",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F5F5F7",
+  "theme_color": "#007AFF",
+  "lang": "zh-CN",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "categories": ["finance", "productivity"]
+}

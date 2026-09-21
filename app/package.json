@@ -1,0 +1,18 @@
+{
+  "name": "rmb-ledger",
+  "version": "1.0.0",
+  "description": "RMB 流水 PWA + Android APK (Monthly Expenses)",
+  "main": "index.js",
+  "scripts": {
+    "cap:sync": "cap sync android",
+    "cap:open": "cap open android",
+    "android:build": "cd android && gradlew assembleDebug"
+  },
+  "dependencies": {
+    "@capacitor/android": "6.1.2",
+    "@capacitor/core": "6.1.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "6.1.2"
+  }
+}

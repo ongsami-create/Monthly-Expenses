@@ -1958,9 +1958,11 @@ createApp({
     }
 
     // ============ v1.5: RMB 流水 functions ============
-    async function loadRmbMonth(month) {
-      // v1.6 优化: 先读 cache,UI 立刻显示
-      const cachedStr = localStorage.getItem('me_rmb_tx_' + month);
+    // v1.7: RMB 流水是银行月结单式,不按月分,跨所有月份累加 (running balance)
+    async function loadAllRmb() {
+      const CACHE_KEY = 'me_rmb_tx_all';
+      // 先读 cache,UI 立刻显示
+      const cachedStr = localStorage.getItem(CACHE_KEY);
       let cacheLoaded = false;
       if (cachedStr) {
         try { rmbTransactions.value = JSON.parse(cachedStr); cacheLoaded = true; } catch (e) {}
@@ -1968,22 +1970,22 @@ createApp({
         rmbTransactions.value = [];
       }
       try {
-        const r = await apiGet('getRmbTransactions', { month });
+        const r = await apiGet('getAllRmbTransactions', { nocache: '1' });
         if (r.success) {
           rmbTransactions.value = r.transactions || [];
-          localStorage.setItem('me_rmb_tx_' + month, JSON.stringify(rmbTransactions.value));
+          localStorage.setItem(CACHE_KEY, JSON.stringify(rmbTransactions.value));
         }
       } catch (e) {
         if (!cacheLoaded) rmbTransactions.value = [];
-        // 有 cache 就静默
       }
-      // 同步算 balance (按日期 ASC)
+      // 同步算 balance (按日期 ASC,跨所有月份累加)
       let bal = rmbOpeningBalance.value || 0;
       const sorted = rmbTransactions.value.slice().sort((a, b) => new Date(a.date) - new Date(b.date));
       sorted.forEach(r => { if (r.type === 'in') bal += r.amount; else bal -= r.amount; r._balance = bal; });
-      // 把 _balance 写回原数组 (用于排序)
       rmbTransactions.value.forEach(r => { const m = sorted.find(x => x.id === r.id); if (m) r._balance = m._balance; });
     }
+    // 兼容旧代码引用
+    const loadRmbMonth = loadAllRmb;
 
     async function loadRmbOpening() {
       try {
@@ -2004,7 +2006,7 @@ createApp({
         if (r.success) {
           rmbOpeningBalance.value = r.openingBalance;
           showToast(i18n.lang === 'en' ? 'Opening balance saved' : '期初余额已保存', 'success');
-          await loadRmbMonth(currentMonth.value);
+          await loadAllRmb();
         } else showToast((i18n.lang === 'en' ? 'Save failed: ' : '保存失败: ') + r.message, 'error');
       } catch (e) { showToast((i18n.lang === 'en' ? 'Network error' : '网络错误'), 'error'); }
     }
@@ -2025,11 +2027,11 @@ createApp({
       try {
         if (rmbModal.editing) {
           const r = await apiPostWithRetry('updateRmbTransaction', { id: rmbModal.editing.id, ...rmbModal.form });
-          if (r.success) { showToast(i18n.lang === 'en' ? 'Updated' : '已更新', 'success'); closeRmbModal(); await loadRmbMonth(currentMonth.value); }
+          if (r.success) { showToast(i18n.lang === 'en' ? 'Updated' : '已更新', 'success'); closeRmbModal(); await loadAllRmb(); }
           else showToast((i18n.lang === 'en' ? 'Update failed: ' : '更新失败: ') + r.message, 'error');
         } else {
           const r = await apiPostWithRetry('addRmbTransaction', rmbModal.form);
-          if (r.success) { showToast(i18n.lang === 'en' ? 'Saved' : '已记录', 'success'); closeRmbModal(); await loadRmbMonth(currentMonth.value); }
+          if (r.success) { showToast(i18n.lang === 'en' ? 'Saved' : '已记录', 'success'); closeRmbModal(); await loadAllRmb(); }
           else showToast((i18n.lang === 'en' ? 'Save failed: ' : '保存失败: ') + r.message, 'error');
         }
       } catch (e) { showToast((i18n.lang === 'en' ? 'Network error: ' : '网络错误: ') + e.message, 'error'); }
@@ -2039,14 +2041,14 @@ createApp({
       if (!confirm(i18n.lang === 'en' ? 'Delete this row?' : '确定删除这行?')) return;
       try {
         const r = await apiPostWithRetry('deleteRmbTransaction', { id: rmbModal.editing.id });
-        if (r.success) { showToast(i18n.lang === 'en' ? 'Deleted' : '已删除', 'success'); closeRmbModal(); await loadRmbMonth(currentMonth.value); }
+        if (r.success) { showToast(i18n.lang === 'en' ? 'Deleted' : '已删除', 'success'); closeRmbModal(); await loadAllRmb(); }
       } catch (e) { showToast(i18n.lang === 'en' ? 'Delete failed' : '删除失败', 'error'); }
     }
     async function deleteRmbTx(id) {
       if (!confirm(i18n.lang === 'en' ? 'Delete this row?' : '确定删除这行?')) return;
       try {
         const r = await apiPostWithRetry('deleteRmbTransaction', { id: id });
-        if (r.success) { showToast(i18n.lang === 'en' ? 'Deleted' : '已删除', 'success'); await loadRmbMonth(currentMonth.value); }
+        if (r.success) { showToast(i18n.lang === 'en' ? 'Deleted' : '已删除', 'success'); await loadAllRmb(); }
       } catch (e) { showToast(i18n.lang === 'en' ? 'Delete failed' : '删除失败', 'error'); }
     }
     function sortRmb(key) {
@@ -2095,7 +2097,7 @@ createApp({
       // v1.5: 同步 RMB 期初 + 当月流水
       const [opn, rmb] = await Promise.all([
         apiGet('getRmbOpening', { nocache: '1' }),
-        apiGet('getRmbTransactions', { month: currentMonth.value, nocache: '1' })
+        apiGet('getAllRmbTransactions', { nocache: '1' })
       ]);
       if (opn.success) {
         rmbOpeningBalance.value = Number(opn.openingBalance) || 0;
@@ -2151,7 +2153,7 @@ createApp({
         if (yearlyData.value.length === 0) await loadYearlyStats();
         else { await nextTick(); renderCharts(); }
       } else if (v === 'reports') loadYearlyStats();
-      else if (v === 'rmb') { await Promise.all([loadRmbOpening(), loadRmbMonth(currentMonth.value)]); }
+      else if (v === 'rmb') { await Promise.all([loadRmbOpening(), loadAllRmb()]); }
     });
     watch(currentMonth, () => { if (activeTab.value === 'reports') loadYearlyStats(); });
 
@@ -2176,8 +2178,8 @@ createApp({
         await loadCategories();
         await loadAccounts();
         await loadMonth(currentMonth.value);
-        // v1.6: RMB 期初 + 当月流水 (并发,省一半时间)
-        await Promise.all([loadRmbOpening(), loadRmbMonth(currentMonth.value)]);
+        // v1.6: RMB 期初 + 全部流水 (并发,省一半时间)
+        await Promise.all([loadRmbOpening(), loadAllRmb()]);
         if (activeTab.value === 'reports') loadYearlyStats();
         apiGet('getYearlyStats', { year: currentYear.value }).then(r => {
           if (r.success) { yearlyData.value = r.months || []; if (activeTab.value === 'overview') renderCharts(); }
@@ -2214,7 +2216,7 @@ createApp({
       // v1.5: RMB 流水
       rmbTransactions, rmbOpeningBalance, rmbOpeningInput, rmbFilter, rmbSort, rmbModal,
       rmbModalValid, rmbFilteredSorted, rmbTotals,
-      loadRmbMonth, loadRmbOpening, saveRmbOpening,
+      loadAllRmb, loadRmbOpening, saveRmbOpening,
       openRmbModal, closeRmbModal, saveRmbTx, deleteRmbFromModal, deleteRmbTx, sortRmb
     };
   }
