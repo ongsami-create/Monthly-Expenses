@@ -482,6 +482,7 @@ function ping() {
 const PROP_RMB_OPENING = 'me_rmb_opening';
 const PROP_RMB_TX_PREFIX = 'me_rmb_tx_';
 const PROP_RMB_TX_INDEX = 'me_rmb_tx_index';
+const PROP_RMB_TX_ALL = 'me_rmb_tx_all';  // v1.8: 预计算总流水 (避免每次合并月份)
 
 function getRmbOpeningBalance() {
   try {
@@ -525,22 +526,31 @@ function getAllRmbTransactions() {
   try {
     const cached = cacheGet_('all_rmb_tx');
     if (cached) return { success: true, transactions: cached, source: 'cache' };
-
-    const idx = readProp(PROP_RMB_TX_INDEX, []);
-    const all = [];
-    idx.forEach(function(m) {
-      const txs = readProp(PROP_RMB_TX_PREFIX + m, []);
-      all.push.apply(all, txs);
-    });
-    // 银行月结单顺序: 日期 ASC
-    all.sort(function(a, b) {
-      const da = new Date(a.date || 0).getTime();
-      const db = new Date(b.date || 0).getTime();
-      return da - db;
-    });
+    // v1.8: 直接读预计算总流水 (1 次 Properties 读, ~50ms vs ~300ms+ 多月读)
+    let all = readProp(PROP_RMB_TX_ALL, null);
+    if (all === null) {
+      all = migrateRmbToAll_();
+    }
     cachePut_('all_rmb_tx', all, CACHE_TTL_SEC);
     return { success: true, transactions: all, source: 'storage' };
   } catch (e) { return { success: false, message: e.toString() }; }
+}
+
+// v1.8: 一次性迁移月份分片到总流水 (旧数据兼容)
+function migrateRmbToAll_() {
+  const idx = readProp(PROP_RMB_TX_INDEX, []);
+  const all = [];
+  idx.forEach(function(m) {
+    const txs = readProp(PROP_RMB_TX_PREFIX + m, []);
+    all.push.apply(all, txs);
+  });
+  all.sort(function(a, b) {
+    const da = new Date(a.date || 0).getTime();
+    const db = new Date(b.date || 0).getTime();
+    return da - db;
+  });
+  props_().setProperty(PROP_RMB_TX_ALL, JSON.stringify(all));
+  return all;
 }
 
 function addRmbTransaction(tx) {
@@ -570,11 +580,19 @@ function addRmbTransaction(tx) {
     txs.sort(function(a, b) { return new Date(a.date) - new Date(b.date); });
     writeProp(PROP_RMB_TX_PREFIX + month, txs);
 
+    // v1.8: 同步更新总流水 (避免 getAllRmbTransactions 时再合并)
+    const allTxs = readProp(PROP_RMB_TX_ALL, null);
+    if (allTxs !== null) {
+      allTxs.push(newTx);
+      allTxs.sort(function(a, b) { return new Date(a.date) - new Date(b.date); });
+      writeProp(PROP_RMB_TX_ALL, allTxs);
+      cachePut_('all_rmb_tx', allTxs, CACHE_TTL_SEC);
+    }
+
     const idx = readProp(PROP_RMB_TX_INDEX, []);
     if (idx.indexOf(month) < 0) { idx.push(month); idx.sort(); writeProp(PROP_RMB_TX_INDEX, idx); }
 
     cachePut_('rmb_tx_' + month, txs, CACHE_TTL_SEC);
-    cacheDel_('all_rmb_tx');
 
     return { success: true, transaction: newTx, month: month };
   } catch (e) { return { success: false, message: e.toString() }; }
@@ -637,7 +655,16 @@ function updateRmbTransaction(tx) {
       cachePut_('rmb_tx_' + oldMonth, newTxs, CACHE_TTL_SEC);
       cachePut_('rmb_tx_' + newMonth, targetTxs, CACHE_TTL_SEC);
     }
-    cacheDel_('all_rmb_tx');
+    // v1.8: 同步更新总流水 (替换旧 id)
+    const allTxs = readProp(PROP_RMB_TX_ALL, null);
+    if (allTxs !== null) {
+      const idx2 = allTxs.findIndex(function(t) { return t.id === updatedTx.id; });
+      if (idx2 >= 0) {
+        allTxs[idx2] = updatedTx;
+        writeProp(PROP_RMB_TX_ALL, allTxs);
+        cachePut_('all_rmb_tx', allTxs, CACHE_TTL_SEC);
+      }
+    }
 
     return { success: true, transaction: updatedTx };
   } catch (e) { return { success: false, message: e.toString() }; }
@@ -658,7 +685,13 @@ function deleteRmbTransaction(id) {
     const newTxs = txs.filter(function(t) { return t.id !== id; });
     writeProp(PROP_RMB_TX_PREFIX + month, newTxs);
     cachePut_('rmb_tx_' + month, newTxs, CACHE_TTL_SEC);
-    cacheDel_('all_rmb_tx');
+    // v1.8: 同步从总流水删除
+    const allTxs = readProp(PROP_RMB_TX_ALL, null);
+    if (allTxs !== null) {
+      const newAll = allTxs.filter(function(t) { return t.id !== id; });
+      writeProp(PROP_RMB_TX_ALL, newAll);
+      cachePut_('all_rmb_tx', newAll, CACHE_TTL_SEC);
+    }
 
     return { success: true, deleted: id, month: month };
   } catch (e) { return { success: false, message: e.toString() }; }

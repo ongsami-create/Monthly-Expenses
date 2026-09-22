@@ -2086,12 +2086,14 @@ createApp({
         showToast(i18n.lang === 'en' ? 'Refresh failed: API offline' : '刷新失败: 后端不在线', 'error');
         return;
       }
-      // 重新拉所有数据 (全用 nocache=1)
-      const [cats, accs, dash, yr] = await Promise.all([
+      // v1.8: 全并发拉所有数据 (1 次 round-trip)
+      const [cats, accs, dash, yr, opn, rmb] = await Promise.all([
         apiGet('getCategories', { nocache: '1' }),
         apiGet('getAccounts', { nocache: '1' }),
         apiGet('getDashboard', { month: currentMonth.value, nocache: '1' }),
-        apiGet('getYearlyStats', { year: currentYear.value, nocache: '1' })
+        apiGet('getYearlyStats', { year: currentYear.value, nocache: '1' }),
+        apiGet('getRmbOpening', { nocache: '1' }),
+        apiGet('getAllRmbTransactions', { nocache: '1' })
       ]);
       if (cats.success) { categories.value = cats.categories || []; localStorage.setItem(STORAGE_KEYS.categories, JSON.stringify(categories.value)); }
       if (accs.success) { accounts.value = accs.accounts || []; localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify(accounts.value)); }
@@ -2101,16 +2103,14 @@ createApp({
         localStorage.setItem(STORAGE_KEYS.transactions + '_' + currentMonth.value, JSON.stringify(transactions.value));
       }
       if (yr.success) yearlyData.value = yr.months || [];
-      // v1.5: 同步 RMB 期初 + 当月流水
-      const [opn, rmb] = await Promise.all([
-        apiGet('getRmbOpening', { nocache: '1' }),
-        apiGet('getAllRmbTransactions', { nocache: '1' })
-      ]);
       if (opn.success) {
         rmbOpeningBalance.value = Number(opn.openingBalance) || 0;
         rmbOpeningInput.value = rmbOpeningBalance.value;
       }
-      if (rmb.success) rmbTransactions.value = rmb.transactions || [];
+      if (rmb.success) {
+        rmbTransactions.value = rmb.transactions || [];
+        localStorage.setItem('me_rmb_tx_all', JSON.stringify(rmbTransactions.value));
+      }
       await nextTick();
       renderCharts();
       renderYearlyChart();
@@ -2182,15 +2182,21 @@ createApp({
       });
       await checkApi();
       if (connected.value) {
-        await loadCategories();
-        await loadAccounts();
-        await loadMonth(currentMonth.value);
-        // v1.6: RMB 期初 + 全部流水 (并发,省一半时间)
-        await Promise.all([loadRmbOpening(), loadAllRmb()]);
-        if (activeTab.value === 'reports') loadYearlyStats();
-        apiGet('getYearlyStats', { year: currentYear.value }).then(r => {
-          if (r.success) { yearlyData.value = r.months || []; if (activeTab.value === 'overview') renderCharts(); }
-        });
+        // v1.8: 全并发加载 (5 个 GAS API 一次 round-trip)
+        const tasks = [
+          loadCategories(),
+          loadAccounts(),
+          loadMonth(currentMonth.value),
+          loadRmbOpening(),
+          loadAllRmb()
+        ];
+        if (activeTab.value === 'reports') tasks.push(loadYearlyStats());
+        await Promise.all(tasks);
+        if (activeTab.value !== 'reports') {
+          apiGet('getYearlyStats', { year: currentYear.value }).then(r => {
+            if (r.success) { yearlyData.value = r.months || []; if (activeTab.value === 'overview') renderCharts(); }
+          });
+        }
       } else {
         const catCached = localStorage.getItem(STORAGE_KEYS.categories);
         if (catCached) categories.value = JSON.parse(catCached);
