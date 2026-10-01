@@ -1847,9 +1847,20 @@ createApp({
         tooltip: { trigger: 'item', formatter: '{b}<br>RM {c} ({d}%)', textStyle: { fontSize: 13 } },
         legend: { show: false },
         series: [{
-          type: 'pie', radius: ['52%', '78%'], center: ['50%', '50%'], avoidLabelOverlap: true,
-          itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 3 },
-          label: { show: false }, labelLine: { show: false },
+          type: 'pie', radius: ['46%', '68%'], center: ['50%', '50%'], avoidLabelOverlap: true,
+          itemStyle: { borderRadius: 4, borderColor: '#fff', borderWidth: 2 },
+          label: {
+            show: true,
+            position: 'outside',
+            formatter: '{b}',
+            fontSize: 11,
+            fontWeight: 600,
+            color: '#1D1D1F',
+            overflow: 'truncate',
+            width: 70
+          },
+          labelLine: { show: true, length: 6, length2: 6, lineStyle: { width: 1 } },
+          labelLayout: { hideOverlap: true, moveOverlap: 'shiftY' },
           data: data
         }]
       });
