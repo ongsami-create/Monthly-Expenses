@@ -365,18 +365,18 @@ body {
 .chart-chips button.active.procurement { background: #FF9500; color: #fff; }
 .chart-chips button.active.profit { background: #007AFF; color: #fff; }
 
-/* ===== Pie split (饼图 + Top 5) ===== */
-.pie-split { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: stretch; }
-.pie-split .chart-body { height: 280px; }
-.pie-top5 { background: var(--bg-secondary); border-radius: var(--radius-md); padding: 12px; display: flex; flex-direction: column; gap: 6px; }
-.pie-top5-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-tertiary); padding: 0 4px 4px; border-bottom: 1px solid var(--border); }
-.pie-top5-item { display: flex; align-items: center; gap: 8px; padding: 4px; border-radius: var(--radius-sm); }
-.pie-top5-item:hover { background: rgba(0,0,0,0.03); }
-.pie-top5-rank { font-size: 11px; font-weight: 800; color: var(--text-tertiary); width: 16px; text-align: center; font-variant-numeric: tabular-nums; }
-.pie-top5-icon { width: 24px; height: 24px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; }
-.pie-top5-name { font-size: 12px; font-weight: 600; color: var(--text-primary); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pie-top5-amount { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text-secondary); flex-shrink: 0; }
-.pie-top5-empty { font-size: 12px; color: var(--text-tertiary); text-align: center; padding: 30px 0; }
+/* ===== Pie split (饼图 + Top 5 上下布局) ===== */
+.pie-split { display: flex; flex-direction: column; gap: 14px; }
+.pie-split .chart-body { height: 240px; width: 100%; }
+.pie-top5 { background: var(--bg-secondary); border-radius: var(--radius-md); padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
+.pie-top5-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-tertiary); padding: 0 4px 6px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+.pie-top5-item { display: flex; align-items: center; gap: 10px; padding: 6px 4px; border-radius: var(--radius-sm); transition: background 0.12s; }
+.pie-top5-item:hover { background: rgba(0,0,0,0.04); }
+.pie-top5-rank { font-size: 11px; font-weight: 800; color: var(--text-tertiary); width: 18px; text-align: center; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+.pie-top5-icon { width: 26px; height: 26px; border-radius: 7px; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
+.pie-top5-name { font-size: 13px; font-weight: 600; color: var(--text-primary); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pie-top5-amount { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text-secondary); flex-shrink: 0; }
+.pie-top5-empty { font-size: 12px; color: var(--text-tertiary); text-align: center; padding: 18px 0; }
 
 /* ===== Top list ===== */
 .rank-list { background: var(--bg-elevated); border-radius: var(--radius-lg); padding: 22px; box-shadow: var(--shadow-sm); }
@@ -1845,9 +1845,9 @@ createApp({
       }
       pieChartInstance.setOption({
         tooltip: { trigger: 'item', formatter: '{b}<br>RM {c} ({d}%)', textStyle: { fontSize: 13 } },
-        legend: { orient: 'vertical', right: 4, top: 'center', textStyle: { fontSize: 11, color: '#1D1D1F' } },
+        legend: { show: false },
         series: [{
-          type: 'pie', radius: ['45%', '72%'], center: ['38%', '50%'], avoidLabelOverlap: true,
+          type: 'pie', radius: ['52%', '78%'], center: ['50%', '50%'], avoidLabelOverlap: true,
           itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 3 },
           label: { show: false }, labelLine: { show: false },
           data: data
