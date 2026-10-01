@@ -367,7 +367,7 @@ body {
 
 /* ===== Pie split (饼图 + Top 5 上下布局) ===== */
 .pie-split { display: flex; flex-direction: column; gap: 14px; }
-.pie-split .chart-body { height: 240px; width: 100%; }
+.pie-split .chart-body { height: 300px; width: 100%; padding-left: 4px; }
 .pie-top5 { background: var(--bg-secondary); border-radius: var(--radius-md); padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
 .pie-top5-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-tertiary); padding: 0 4px 6px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
 .pie-top5-item { display: flex; align-items: center; gap: 10px; padding: 6px 4px; border-radius: var(--radius-sm); transition: background 0.12s; }
@@ -1845,22 +1845,22 @@ createApp({
       }
       pieChartInstance.setOption({
         tooltip: { trigger: 'item', formatter: '{b}<br>RM {c} ({d}%)', textStyle: { fontSize: 13 } },
-        legend: { show: false },
+        legend: {
+          show: true,
+          orient: 'vertical',
+          right: 4,
+          top: 'middle',
+          itemWidth: 14,
+          itemHeight: 10,
+          itemGap: 9,
+          icon: 'roundRect',
+          textStyle: { fontSize: 11.5, color: '#1D1D1F', fontWeight: 500, padding: [0, 0, 0, 2] },
+          formatter: function (name) { return name.length > 7 ? name.slice(0, 7) + '…' : name; }
+        },
         series: [{
-          type: 'pie', radius: ['46%', '68%'], center: ['50%', '50%'], avoidLabelOverlap: true,
+          type: 'pie', radius: ['42%', '64%'], center: ['26%', '50%'], avoidLabelOverlap: true,
           itemStyle: { borderRadius: 4, borderColor: '#fff', borderWidth: 2 },
-          label: {
-            show: true,
-            position: 'outside',
-            formatter: '{b}',
-            fontSize: 11,
-            fontWeight: 600,
-            color: '#1D1D1F',
-            overflow: 'truncate',
-            width: 70
-          },
-          labelLine: { show: true, length: 6, length2: 6, lineStyle: { width: 1 } },
-          labelLayout: { hideOverlap: true, moveOverlap: 'shiftY' },
+          label: { show: false }, labelLine: { show: false },
           data: data
         }]
       });
