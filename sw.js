@@ -1,5 +1,5 @@
 // RMB PWA Service Worker (network-first, 永远拉新版)
-const CACHE_NAME = 'rmb-v1.7';
+const CACHE_NAME = 'me-v1.8.1';
 const APP_SHELL = [
   './',
   './index.html',

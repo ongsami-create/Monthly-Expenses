@@ -354,6 +354,30 @@ body {
 .chart-body { height: 320px; }
 .chart-body.tall { height: 400px; }
 
+/* ===== Chart chips (filter) ===== */
+.chart-chips { display: flex; gap: 4px; flex-wrap: wrap; }
+.chart-chips button { background: var(--bg-secondary); border: none; padding: 5px 10px; font-size: 11px; font-weight: 600; color: var(--text-secondary); border-radius: var(--radius-full); cursor: pointer; font-family: inherit; transition: all 0.15s; letter-spacing: 0.02em; }
+.chart-chips button:hover { background: var(--bg-tertiary, rgba(0,0,0,0.06)); }
+.chart-chips button.active { background: var(--text-primary); color: var(--bg-elevated); box-shadow: 0 2px 6px rgba(0,0,0,0.12); }
+.chart-chips button.active.income { background: #34C759; color: white; }
+.chart-chips button.active.expense { background: #FF3B30; color: white; }
+.chart-chips button.active.asset { background: #5856D6; color: white; }
+.chart-chips button.active.procurement { background: #FF9500; color: white; }
+.chart-chips button.active.profit { background: #007AFF; color: white; }
+
+/* ===== Pie split (饼图 + Top 5) ===== */
+.pie-split { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: stretch; }
+.pie-split .chart-body { height: 280px; }
+.pie-top5 { background: var(--bg-secondary); border-radius: var(--radius-md); padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+.pie-top5-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-tertiary); padding: 0 4px 4px; border-bottom: 1px solid var(--border); }
+.pie-top5-item { display: flex; align-items: center; gap: 8px; padding: 4px; border-radius: var(--radius-sm); }
+.pie-top5-item:hover { background: rgba(0,0,0,0.03); }
+.pie-top5-rank { font-size: 11px; font-weight: 800; color: var(--text-tertiary); width: 16px; text-align: center; font-variant-numeric: tabular-nums; }
+.pie-top5-icon { width: 24px; height: 24px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; }
+.pie-top5-name { font-size: 12px; font-weight: 600; color: var(--text-primary); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pie-top5-amount { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text-secondary); flex-shrink: 0; }
+.pie-top5-empty { font-size: 12px; color: var(--text-tertiary); text-align: center; padding: 30px 0; }
+
 /* ===== Top list ===== */
 .rank-list { background: var(--bg-elevated); border-radius: var(--radius-lg); padding: 22px; box-shadow: var(--shadow-sm); }
 .rank-item { display: flex; align-items: center; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--separator); }
@@ -743,8 +767,29 @@ body {
           <div class="chart-body tall" ref="trendChart"></div>
         </div>
         <div class="chart-card">
-          <div class="chart-title"><span>{{ t('pieTitle') }}</span><span class="badge">{{ yearMonthText }}</span></div>
-          <div class="chart-body tall" ref="pieChart"></div>
+          <div class="chart-title">
+            <span>{{ t('pieTitle') }}<span class="badge" style="margin-left:8px;">{{ yearMonthText }}</span></span>
+            <div class="chart-chips">
+              <button :class="{active: pieFilter==='all'}" @click="setPieFilter('all')">{{ t('allTypes') }}</button>
+              <button :class="{active: pieFilter==='income'}" @click="setPieFilter('income')">{{ t('income') }}</button>
+              <button :class="{active: pieFilter==='asset'}" @click="setPieFilter('asset')">{{ t('asset') }}</button>
+              <button :class="{active: pieFilter==='procurement'}" @click="setPieFilter('procurement')">{{ t('procurement') }}</button>
+              <button :class="{active: pieFilter==='expense'}" @click="setPieFilter('expense')">{{ t('expense') }}</button>
+            </div>
+          </div>
+          <div class="pie-split">
+            <div class="chart-body" ref="pieChart"></div>
+            <div class="pie-top5">
+              <div class="pie-top5-title">{{ t('top5Sub') }}</div>
+              <div v-for="(item, idx) in pieTop5" :key="item.id" class="pie-top5-item">
+                <div class="pie-top5-rank">{{ idx+1 }}</div>
+                <div class="pie-top5-icon" :style="{background: item.color+'20', color: item.color}">{{ item.icon || '📦' }}</div>
+                <div class="pie-top5-name">{{ item.name }}</div>
+                <div class="pie-top5-amount">{{ formatMoney(item.amount) }}</div>
+              </div>
+              <div v-if="pieTop5.length === 0" class="pie-top5-empty">{{ t('pieEmpty') }}</div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1231,6 +1276,7 @@ const I18N = {
     loading: '加载中…',
     tabOverview: '概览', tabTx: '明细', tabCat: '类别', tabAcc: '账户', tabRmb: 'RMB 流水', tabReport: '报表',
     trendTitle: '年度趋势', pieTitle: '本月分类', rankTitle: '支出排行',
+    allTypes: '全部', profit: '盈利', top5Sub: 'Top 5 子分类', pieEmpty: '本月暂无数据',
     noExpense: '本月暂无支出',
     noTx: '本月还没有记账', noTxDesc: '点击右上角"记账"开始记录',
     noYearData: '该年份暂无数据',
@@ -1288,6 +1334,7 @@ const I18N = {
     loading: 'Loading…',
     tabOverview: 'Overview', tabTx: 'Transactions', tabCat: 'Categories', tabAcc: 'Accounts', tabRmb: 'RMB Ledger', tabReport: 'Reports',
     trendTitle: 'Yearly Trend', pieTitle: 'This Month', rankTitle: 'Top Spending',
+    allTypes: 'All', profit: 'Profit', top5Sub: 'Top 5 Subcategories', pieEmpty: 'No data this month',
     noExpense: 'No expenses this month',
     noTx: 'No transactions this month', noTxDesc: 'Click "Add" in the top right to start recording',
     noYearData: 'No data for this year',
@@ -1409,6 +1456,19 @@ createApp({
 
     const categories = ref([]), accounts = ref([]), transactions = ref([]);
     const stats = reactive({ income: 0, expense: 0, asset: 0, procurement: 0, profit: 0, count: 0, byCategory: {}, byAccount: {}, byDay: {} });
+
+    const pieFilter = ref('all');  // 'all' | 'income' | 'asset' | 'procurement' | 'expense'
+    const pieTop5 = computed(() => {
+      const list = [];
+      Object.entries(stats.byCategory || {}).forEach(([id, info]) => {
+        if (info.amount <= 0) return;
+        if (pieFilter.value !== 'all' && info.type !== pieFilter.value) return;
+        const cat = getCategory(id);
+        list.push({ id: id, name: catName(cat), amount: info.amount, color: cat.color, icon: cat.icon });
+      });
+      list.sort((a, b) => b.amount - a.amount);
+      return list.slice(0, 5);
+    });
 
     const reportYear = ref(today.getFullYear()), yearlyData = ref([]);
 
@@ -1726,29 +1786,41 @@ createApp({
     function goToMonth(m) { currentMonth.value = m; localStorage.setItem(STORAGE_KEYS.month, m); loadMonth(m); }
 
     function renderCharts() { if (activeTab.value !== 'overview') return; renderTrendChart(); renderPieChart(); }
+    function setPieFilter(type) { pieFilter.value = type; renderPieChart(); }
+    watch(pieFilter, () => { if (activeTab.value === 'overview') renderPieChart(); });
     function renderTrendChart() {
       if (!trendChart.value) return;
       if (!trendChartInstance) trendChartInstance = echarts.init(trendChart.value);
-      const months = [], incomes = [], expenses = [], assets = [], procurements = [];
+      const months = [], incomes = [], expenses = [], assets = [], procurements = [], profits = [];
       for (let i = 1; i <= 12; i++) {
         const m = currentYear.value + '-' + String(i).padStart(2, '0');
         months.push(i + (i18n.lang === 'en' ? '' : '月'));
         const found = yearlyData.value.find(d => d.month === m);
-        if (found) { incomes.push(found.income); expenses.push(found.expense); assets.push(found.asset || 0); procurements.push(found.procurement || 0); }
-        else { incomes.push(0); expenses.push(0); assets.push(0); procurements.push(0); }
+        if (found) {
+          incomes.push(found.income || 0);
+          expenses.push(found.expense || 0);
+          assets.push(found.asset || 0);
+          procurements.push(found.procurement || 0);
+          profits.push((found.income || 0) - (found.expense || 0));
+        } else {
+          incomes.push(0); expenses.push(0); assets.push(0); procurements.push(0); profits.push(0);
+        }
       }
+      const hasAny = incomes.some(v => v) || expenses.some(v => v) || assets.some(v => v) || procurements.some(v => v);
       trendChartInstance.setOption({
         grid: { top: 40, right: 16, bottom: 30, left: 60 },
         tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-        legend: { data: [t('income'), t('expense'), t('asset'), t('procurement')], top: 0, right: 10, textStyle: { fontSize: 12 } },
+        legend: { data: [t('income'), t('asset'), t('procurement'), t('expense'), t('profit')], top: 0, right: 10, textStyle: { fontSize: 12 } },
         xAxis: { type: 'category', data: months, axisLine: { lineStyle: { color: '#C7C7CC' } }, axisLabel: { color: '#6E6E73', fontSize: 12 } },
         yAxis: { type: 'value', axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: 'rgba(60,60,67,0.08)' } }, axisLabel: { color: '#6E6E73', fontSize: 12, formatter: v => v >= 1000 ? (v/1000).toFixed(1) + 'k' : v } },
         series: [
-          { name: t('income'), type: 'bar', stack: 'a', data: incomes, itemStyle: { color: '#34C759' }, barMaxWidth: 14 },
-          { name: t('expense'), type: 'bar', stack: 'a', data: expenses, itemStyle: { color: '#FF3B30' }, barMaxWidth: 14 },
-          { name: t('asset'), type: 'bar', stack: 'a', data: assets, itemStyle: { color: '#5856D6' }, barMaxWidth: 14 },
-          { name: t('procurement'), type: 'bar', stack: 'a', data: procurements, itemStyle: { color: '#FF9500' }, barMaxWidth: 14 }
-        ]
+          { name: t('income'), type: 'bar', stack: 'total', data: incomes, itemStyle: { color: '#34C759' }, barMaxWidth: 22 },
+          { name: t('asset'), type: 'bar', stack: 'total', data: assets, itemStyle: { color: '#5856D6' }, barMaxWidth: 22 },
+          { name: t('procurement'), type: 'bar', stack: 'total', data: procurements, itemStyle: { color: '#FF9500' }, barMaxWidth: 22 },
+          { name: t('expense'), type: 'bar', stack: 'total', data: expenses, itemStyle: { color: '#FF3B30' }, barMaxWidth: 22 },
+          { name: t('profit'), type: 'line', smooth: true, data: profits, itemStyle: { color: '#007AFF' }, lineStyle: { width: 3 }, symbol: 'circle', symbolSize: 7, z: 10 }
+        ],
+        graphic: hasAny ? undefined : { type: 'text', left: 'center', top: 'middle', style: { text: i18n.lang === 'en' ? 'No data' : '暂无数据', fontSize: 15, fill: '#86868B' } }
       });
     }
     function renderPieChart() {
@@ -1756,10 +1828,10 @@ createApp({
       if (!pieChartInstance) pieChartInstance = echarts.init(pieChart.value);
       const data = [];
       Object.entries(stats.byCategory || {}).forEach(([id, info]) => {
-        if (info.amount > 0) {
-          const cat = getCategory(id);
-          data.push({ name: catName(cat), value: info.amount, itemStyle: { color: cat.color } });
-        }
+        if (info.amount <= 0) return;
+        if (pieFilter.value !== 'all' && info.type !== pieFilter.value) return;
+        const cat = getCategory(id);
+        data.push({ name: catName(cat), value: info.amount, itemStyle: { color: cat.color } });
       });
       if (data.length === 0) {
         pieChartInstance.clear();
@@ -1768,7 +1840,7 @@ createApp({
       }
       pieChartInstance.setOption({
         tooltip: { trigger: 'item', formatter: '{b}<br>RM {c} ({d}%)', textStyle: { fontSize: 13 } },
-        legend: { orient: 'vertical', right: 10, top: 'center', textStyle: { fontSize: 12, color: '#1D1D1F' } },
+        legend: { orient: 'vertical', right: 4, top: 'center', textStyle: { fontSize: 11, color: '#1D1D1F' } },
         series: [{
           type: 'pie', radius: ['45%', '72%'], center: ['38%', '50%'], avoidLabelOverlap: true,
           itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 3 },
@@ -2215,6 +2287,7 @@ createApp({
       hasData, catTypeSections, accTypeSections, categoriesByType, accountsByType, countByType,
       topExpenseCategories, groupedTransactions, getCategory, getAccount, catName,
       availableYears, reportYear, yearlyData, yearlyTotal,
+      pieFilter, pieTop5, setPieFilter,
       txModal, catModal, accModal, txModalValid, accModalValid, colorList, iconList,
       toast,
       openTxModal, closeTxModal, saveTx, deleteTx,

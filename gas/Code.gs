@@ -390,11 +390,13 @@ function getYearlyStats(year) {
     if (cached) return { success: true, year: Number(year), months: cached, source: 'cache' };
 
     const idx = readProp(PROP_TX_INDEX, []);
+    const catsResult = getCategories();
+    if (!catsResult.success) return catsResult;
     const months = [];
     idx.forEach(function(m) {
       if (m.indexOf(String(year)) === 0) {
         const txs = readProp(txKey_(m), []);
-        const s = computeMonthStats_(m, txs, []);
+        const s = computeMonthStats_(m, txs, catsResult.categories);
         months.push({
           month: m,
           income: s.income,
