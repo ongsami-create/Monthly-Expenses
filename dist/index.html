@@ -358,12 +358,12 @@ body {
 .chart-chips { display: flex; gap: 4px; flex-wrap: wrap; }
 .chart-chips button { background: var(--bg-secondary); border: none; padding: 5px 10px; font-size: 11px; font-weight: 600; color: var(--text-secondary); border-radius: var(--radius-full); cursor: pointer; font-family: inherit; transition: all 0.15s; letter-spacing: 0.02em; }
 .chart-chips button:hover { background: var(--bg-tertiary, rgba(0,0,0,0.06)); }
-.chart-chips button.active { background: var(--text-primary); color: var(--bg-elevated); box-shadow: 0 2px 6px rgba(0,0,0,0.12); }
-.chart-chips button.active.income { background: #34C759; color: white; }
-.chart-chips button.active.expense { background: #FF3B30; color: white; }
-.chart-chips button.active.asset { background: #5856D6; color: white; }
-.chart-chips button.active.procurement { background: #FF9500; color: white; }
-.chart-chips button.active.profit { background: #007AFF; color: white; }
+.chart-chips button.active { background: var(--text-primary); color: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.12); }
+.chart-chips button.active.income { background: #34C759; color: #fff; }
+.chart-chips button.active.expense { background: #FF3B30; color: #fff; }
+.chart-chips button.active.asset { background: #5856D6; color: #fff; }
+.chart-chips button.active.procurement { background: #FF9500; color: #fff; }
+.chart-chips button.active.profit { background: #007AFF; color: #fff; }
 
 /* ===== Pie split (饼图 + Top 5) ===== */
 .pie-split { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: stretch; }
@@ -1807,7 +1807,7 @@ createApp({
         }
       }
       const hasAny = incomes.some(v => v) || expenses.some(v => v) || assets.some(v => v) || procurements.some(v => v);
-      trendChartInstance.setOption({
+      const opt = {
         grid: { top: 40, right: 16, bottom: 30, left: 60 },
         tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
         legend: { data: [t('income'), t('asset'), t('procurement'), t('expense'), t('profit')], top: 0, right: 10, textStyle: { fontSize: 12 } },
@@ -1819,9 +1819,14 @@ createApp({
           { name: t('procurement'), type: 'bar', stack: 'total', data: procurements, itemStyle: { color: '#FF9500' }, barMaxWidth: 22 },
           { name: t('expense'), type: 'bar', stack: 'total', data: expenses, itemStyle: { color: '#FF3B30' }, barMaxWidth: 22 },
           { name: t('profit'), type: 'line', smooth: true, data: profits, itemStyle: { color: '#007AFF' }, lineStyle: { width: 3 }, symbol: 'circle', symbolSize: 7, z: 10 }
-        ],
-        graphic: hasAny ? undefined : { type: 'text', left: 'center', top: 'middle', style: { text: i18n.lang === 'en' ? 'No data' : '暂无数据', fontSize: 15, fill: '#86868B' } }
-      });
+        ]
+      };
+      if (!hasAny) {
+        opt.graphic = { type: 'text', left: 'center', top: 'middle', style: { text: i18n.lang === 'en' ? 'No data' : '暂无数据', fontSize: 15, fill: '#86868B' } };
+      } else {
+        opt.graphic = { type: 'text', invisible: true };
+      }
+      trendChartInstance.setOption(opt);
     }
     function renderPieChart() {
       if (!pieChart.value) return;
