@@ -1788,9 +1788,24 @@ createApp({
     function renderCharts() { if (activeTab.value !== 'overview') return; renderTrendChart(); renderPieChart(); }
     function setPieFilter(type) { pieFilter.value = type; renderPieChart(); }
     watch(pieFilter, () => { if (activeTab.value === 'overview') renderPieChart(); });
+
+    // v1.8.7: tab 用 v-if 切换会销毁图表容器 DOM, 但 ECharts 实例变量还指向旧节点。
+    // 回到概览时 setOption 写进已销毁节点 → 图表空白, 必须刷新才恢复。
+    // 这里校验实例绑定的 DOM 是否仍是当前容器, 不是就 dispose 重建。
+    function ensureChart_(instance, dom) {
+      if (!dom) return null;
+      if (instance && instance.getDom() !== dom) {
+        try { instance.dispose(); } catch (e) {}
+        instance = null;
+      }
+      if (!instance) instance = echarts.init(dom);
+      return instance;
+    }
+
     function renderTrendChart() {
       if (!trendChart.value) return;
-      if (!trendChartInstance) trendChartInstance = echarts.init(trendChart.value);
+      trendChartInstance = ensureChart_(trendChartInstance, trendChart.value);
+      if (!trendChartInstance) return;
       const months = [], incomes = [], expenses = [], assets = [], procurements = [], profits = [];
       for (let i = 1; i <= 12; i++) {
         const m = currentYear.value + '-' + String(i).padStart(2, '0');
@@ -1830,7 +1845,8 @@ createApp({
     }
     function renderPieChart() {
       if (!pieChart.value) return;
-      if (!pieChartInstance) pieChartInstance = echarts.init(pieChart.value);
+      pieChartInstance = ensureChart_(pieChartInstance, pieChart.value);
+      if (!pieChartInstance) return;
       const data = [];
       Object.entries(stats.byCategory || {}).forEach(([id, info]) => {
         if (info.amount <= 0) return;
@@ -1867,7 +1883,8 @@ createApp({
     }
     function renderYearlyChart() {
       if (!yearlyChart.value) return;
-      if (!yearlyChartInstance) yearlyChartInstance = echarts.init(yearlyChart.value);
+      yearlyChartInstance = ensureChart_(yearlyChartInstance, yearlyChart.value);
+      if (!yearlyChartInstance) return;
       const months = yearlyData.value.map(d => d.month);
       yearlyChartInstance.setOption({
         grid: { top: 40, right: 16, bottom: 30, left: 60 },
@@ -2249,6 +2266,12 @@ createApp({
         else { await nextTick(); renderCharts(); }
       } else if (v === 'reports') loadYearlyStats();
       else if (v === 'rmb') { await Promise.all([loadRmbOpening(), loadAllRmb()]); }
+      // v1.8.7: 切到概览时容器是新建的, 等一帧让布局稳定再 resize, 否则图表画不出来
+      if (v === 'overview') requestAnimationFrame(() => {
+        trendChartInstance && trendChartInstance.resize();
+        pieChartInstance && pieChartInstance.resize();
+      });
+      if (v === 'reports') requestAnimationFrame(() => { yearlyChartInstance && yearlyChartInstance.resize(); });
     });
     watch(currentMonth, () => { if (activeTab.value === 'reports') loadYearlyStats(); });
 
