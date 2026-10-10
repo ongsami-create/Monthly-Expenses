@@ -451,7 +451,52 @@ function getDashboard(month) {
   }
 }
 
-// ==================== 健康检查 ====================
+// ==================== 聚合接口 (v1.8.8: 首屏 1 次请求) ====================
+// 实测: GAS 每次 HTTP 请求固定 1.1-1.9s (容器冷启动), 跟数据量无关。
+// 并发 6 次 ≈ 串行 6 次 (9.3s vs 9.7s), 所以唯一有效优化是减少请求数。
+// 这个接口一次返回首屏所需的全部数据: 6 次请求 → 1 次, 约 9.3s → 1.5s。
+function getAppState(month, year, nocache) {
+  try {
+    if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+      return { success: false, message: 'month 必填, 格式 YYYY-MM' };
+    }
+    if (!year || !/^\d{4}$/.test(String(year))) {
+      return { success: false, message: 'year 必填, 格式 YYYY' };
+    }
+
+    const cacheKey = 'appstate_' + month + '_' + year;
+    if (!nocache) {
+      const cached = cacheGet_(cacheKey);
+      if (cached) return Object.assign({ source: 'cache' }, cached);
+    }
+
+    // getDashboard 内部已含 categories + accounts + transactions + stats,
+    // 所以不再单独调 getCategories / getAccounts (避免重复读 + 重复传输)。
+    const dash = getDashboard(month);
+    if (!dash.success) return dash;
+    const yearly = getYearlyStats(year);
+    const rmbAll = getAllRmbTransactions();
+    const rmbOpn = getRmbOpeningBalance();
+
+    const result = {
+      success: true,
+      month: month,
+      year: Number(year),
+      categories: dash.categories,
+      accounts: dash.accounts,
+      transactions: dash.transactions,
+      stats: dash.stats,
+      yearly: yearly.success ? yearly.months : [],
+      rmbTransactions: rmbAll.success ? rmbAll.transactions : [],
+      rmbOpeningBalance: rmbOpn.success ? rmbOpn.openingBalance : 0,
+      source: 'storage'
+    };
+    cachePut_(cacheKey, result, CACHE_TTL_SEC);
+    return result;
+  } catch (error) {
+    return { success: false, message: error.toString() };
+  }
+}
 
 function ping() {
   try {
@@ -797,6 +842,7 @@ function doGet(e) {
       cacheDel_('rmb_stats_' + month);
       cacheDel_('yearly_' + year);
       cacheDel_('dashboard_' + month);
+      cacheDel_('appstate_' + month + '_' + year);
     }
 
     switch (action) {
@@ -823,6 +869,9 @@ function doGet(e) {
         break;
       case 'getDashboard':
         result = getDashboard(month);
+        break;
+      case 'getAppState':
+        result = getAppState(month, year || String(month).slice(0, 4), nocache);
         break;
       case 'getRmbOpening':
         result = getRmbOpeningBalance();

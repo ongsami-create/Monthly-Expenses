@@ -2183,45 +2183,20 @@ createApp({
     }
 
     // v1.4: 强制刷新云端数据 (跨设备同步)
-    // 传 nocache=1 给 GAS, 跳过 5s CacheService, 实时读 PropertiesService
+    // 传 nocache=1 给 GAS, 跳过 CacheService, 实时读 PropertiesService
     async function forceRefresh() {
       console.log('[forceRefresh] start');
-      const r = await apiGet('ping', { nocache: '1' });
-      if (!r.success) {
+      const t0 = Date.now();
+      // v1.8.8: 走聚合接口 1 次请求 (原来 ping + 6 次并发 = 7 次, 约 10s+)
+      let ok = false;
+      try { ok = await loadAppState(true); } catch (e) { ok = false; }
+      if (!ok) {
         showToast(i18n.lang === 'en' ? 'Refresh failed: API offline' : '刷新失败: 后端不在线', 'error');
         return;
       }
-      // v1.8: 全并发拉所有数据 (1 次 round-trip)
-      const [cats, accs, dash, yr, opn, rmb] = await Promise.all([
-        apiGet('getCategories', { nocache: '1' }),
-        apiGet('getAccounts', { nocache: '1' }),
-        apiGet('getDashboard', { month: currentMonth.value, nocache: '1' }),
-        apiGet('getYearlyStats', { year: currentYear.value, nocache: '1' }),
-        apiGet('getRmbOpening', { nocache: '1' }),
-        apiGet('getAllRmbTransactions', { nocache: '1' })
-      ]);
-      if (cats.success) { categories.value = cats.categories || []; localStorage.setItem(STORAGE_KEYS.categories, JSON.stringify(categories.value)); }
-      if (accs.success) { accounts.value = accs.accounts || []; localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify(accounts.value)); }
-      if (dash.success) {
-        transactions.value = dash.transactions || [];
-        Object.assign(stats, dash.stats || { income: 0, expense: 0, asset: 0, procurement: 0, profit: 0, count: 0, byCategory: {}, byAccount: {}, byDay: {} });
-        localStorage.setItem(STORAGE_KEYS.transactions + '_' + currentMonth.value, JSON.stringify(transactions.value));
-      }
-      if (yr.success) yearlyData.value = yr.months || [];
-      if (opn.success) {
-        rmbOpeningBalance.value = Number(opn.openingBalance) || 0;
-        rmbOpeningInput.value = rmbOpeningBalance.value;
-      }
-      if (rmb.success) {
-        rmbTransactions.value = rmb.transactions || [];
-        localStorage.setItem('me_rmb_tx_all', JSON.stringify(rmbTransactions.value));
-      }
-      await nextTick();
-      renderCharts();
-      renderYearlyChart();
-      const cnt = (cats.success ? cats.categories.length : 0) + 'C / ' + (accs.success ? accs.accounts.length : 0) + 'A / ' + (dash.success ? dash.transactions.length : 0) + 'T / ' + (rmb.success ? rmb.transactions.length : 0) + 'R';
-      console.log('[forceRefresh] done:', cnt);
-      showToast(t('refreshed') + ' (' + cnt + ')', 'success', 1800);
+      const cnt = categories.value.length + 'C / ' + accounts.value.length + 'A / ' + transactions.value.length + 'T / ' + rmbTransactions.value.length + 'R';
+      console.log('[forceRefresh] done:', cnt, ((Date.now() - t0) / 1000).toFixed(2) + 's');
+      showToast(t('refreshed') + ' (' + cnt + ') · ' + ((Date.now() - t0) / 1000).toFixed(1) + 's', 'success', 1800);
     }
     function exportJSON() {
       const data = { exportedAt: new Date().toISOString(), version: '1.2', categories: categories.value, accounts: accounts.value, transactions: transactions.value };
@@ -2283,6 +2258,58 @@ createApp({
       else if (e.key === 'ArrowRight') { changeMonth(1); e.preventDefault(); }
     }
 
+    // v1.8.8: GAS 加了 getAppState 聚合接口, 首屏从 6 次请求降到 1 次。
+// 实测 GAS 每次 HTTP 固定 1.1-1.9s (容器冷启动), 并发无收益,
+// 所以减少请求数是唯一有效优化 (串行 6 次 9.3s → 1 次约 1.5s)。
+// 若 GAS 未部署 getAppState, 自动回退到原来的多请求路径 (向后兼容)。
+async function loadAppState(nocache) {
+      const q = { month: currentMonth.value, year: currentYear.value };
+      if (nocache) q.nocache = '1';
+      const r = await apiGet('getAppState', q);
+      if (!r || !r.success || !r.stats) return false;
+
+      categories.value = r.categories || [];
+      accounts.value = r.accounts || [];
+      transactions.value = r.transactions || [];
+      Object.assign(stats, r.stats);
+      yearlyData.value = r.yearly || [];
+      rmbTransactions.value = r.rmbTransactions || [];
+      rmbOpeningBalance.value = Number(r.rmbOpeningBalance) || 0;
+      rmbOpeningInput.value = rmbOpeningBalance.value;
+
+      localStorage.setItem(STORAGE_KEYS.categories, JSON.stringify(categories.value));
+      localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify(accounts.value));
+      localStorage.setItem(STORAGE_KEYS.transactions + '_' + currentMonth.value, JSON.stringify(transactions.value));
+      localStorage.setItem('me_rmb_tx_all', JSON.stringify(rmbTransactions.value));
+
+      if (categories.value.length === 0) await seedDefaults();
+      else await migrateCategoryTranslations();
+      if (accounts.value.length === 0) await seedDefaultAccount();
+
+      await nextTick();
+      if (activeTab.value === 'overview') renderCharts();
+      if (activeTab.value === 'reports') renderYearlyChart();
+      return true;
+    }
+
+    // v1.8.8: 老 GAS (未部署 getAppState) 的回退路径, 保持原行为
+    async function loadAllLegacy() {
+      const tasks = [
+        loadCategories(),
+        loadAccounts(),
+        loadMonth(currentMonth.value),
+        loadRmbOpening(),
+        loadAllRmb()
+      ];
+      if (activeTab.value === 'reports') tasks.push(loadYearlyStats());
+      await Promise.all(tasks);
+      if (activeTab.value !== 'reports') {
+        apiGet('getYearlyStats', { year: currentYear.value }).then(r => {
+          if (r.success) { yearlyData.value = r.months || []; if (activeTab.value === 'overview') renderCharts(); }
+        });
+      }
+    }
+
     onMounted(async () => {
       window.addEventListener('keydown', onKey);
       updateDocTitle();
@@ -2293,21 +2320,9 @@ createApp({
       });
       await checkApi();
       if (connected.value) {
-        // v1.8: 全并发加载 (5 个 GAS API 一次 round-trip)
-        const tasks = [
-          loadCategories(),
-          loadAccounts(),
-          loadMonth(currentMonth.value),
-          loadRmbOpening(),
-          loadAllRmb()
-        ];
-        if (activeTab.value === 'reports') tasks.push(loadYearlyStats());
-        await Promise.all(tasks);
-        if (activeTab.value !== 'reports') {
-          apiGet('getYearlyStats', { year: currentYear.value }).then(r => {
-            if (r.success) { yearlyData.value = r.months || []; if (activeTab.value === 'overview') renderCharts(); }
-          });
-        }
+        let ok = false;
+        try { ok = await loadAppState(false); } catch (e) { ok = false; }
+        if (!ok) await loadAllLegacy();
       } else {
         const catCached = localStorage.getItem(STORAGE_KEYS.categories);
         if (catCached) categories.value = JSON.parse(catCached);
