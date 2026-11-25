@@ -897,6 +897,11 @@ body {
       </div>
 
       <div class="rmb-filter-bar">
+        <label>{{ t('yearLabel') }}:</label>
+        <select class="form-select" v-model="rmbFilter.year" @change="setRmbYear(rmbFilter.year)">
+          <option value="">{{ t('allYears') }}</option>
+          <option v-for="y in rmbYears" :key="y" :value="y">{{ y }}</option>
+        </select>
         <label>{{ t('rmbDate') }}:</label>
         <input class="form-input" type="date" v-model="rmbFilter.from">
         <label>~</label>
@@ -1310,6 +1315,7 @@ const I18N = {
     rmbTotalIn: '总转入', rmbTotalOut: '总转出', rmbEnd: '期末余额',
     rmbFilterAll: '全部', rmbFilterIn: '仅转入', rmbFilterOut: '仅转出',
     rmbSearchPh: '搜索项目或备注…', rmbFrom: '从', rmbTo: '至',
+    allYears: '全部年份', yearLabel: '年份',
     rmbSortAsc: '↑', rmbSortDesc: '↓', rmbSortNone: '↕',
     rmbNoTx: '本月还没有 RMB 流水',
     rmbAddIn: '+ 记一笔转入', rmbAddOut: '+ 记一笔转出',
@@ -1369,6 +1375,7 @@ const I18N = {
     rmbTotalIn: 'Total In', rmbTotalOut: 'Total Out', rmbEnd: 'Closing Balance',
     rmbFilterAll: 'All', rmbFilterIn: 'In only', rmbFilterOut: 'Out only',
     rmbSearchPh: 'Search project or note…', rmbFrom: 'From', rmbTo: 'To',
+    allYears: 'All years', yearLabel: 'Year',
     rmbSortAsc: '↑', rmbSortDesc: '↓', rmbSortNone: '↕',
     rmbNoTx: 'No RMB transactions this month',
     rmbAddIn: '+ Record Inflow', rmbAddOut: '+ Record Outflow',
@@ -1483,8 +1490,23 @@ createApp({
     const rmbTransactions = ref([]);
     const rmbOpeningBalance = ref(0);
     const rmbOpeningInput = ref(0);
-    const rmbFilter = reactive({ from: '', to: '', search: '', type: 'all' });
+    const rmbFilter = reactive({ from: '', to: '', search: '', type: 'all', year: '' });
     const rmbSort = reactive({ key: 'date', dir: 'asc' });
+
+    // v1.8.9: 全部有数据的年份 (4 类记账 + RMB 流水), 从 GAS 的 index 推导
+    const dataYears = ref([]);
+    // RMB 流水有数据的年份 (从全量流水本地推导, 不依赖 GAS)
+    const rmbYears = computed(() => {
+      const set = new Set();
+      rmbTransactions.value.forEach(r => { if (r && r.date) set.add(String(r.date).slice(0, 4)); });
+      dataYears.value.forEach(y => set.add(String(y)));
+      return Array.from(set).filter(Boolean).sort((a, b) => b.localeCompare(a));
+    });
+    // 选年份时清掉日期区间, 避免两个条件互相打架导致空结果
+    function setRmbYear(y) {
+      rmbFilter.year = y;
+      if (y) { rmbFilter.from = ''; rmbFilter.to = ''; }
+    }
     const rmbModal = reactive({ open: false, editing: null, form: { type: 'in', date: '', project: '', amount: 0, note: '' } });
 
     const toast = reactive({ show: false, message: '', type: 'info' });
@@ -1515,9 +1537,13 @@ createApp({
     function countByType(type) { return transactions.value.filter(t => { const cat = getCategory(t.categoryId); return cat.type === type; }).length; }
 
     const availableYears = computed(() => {
+      // v1.8.9: 优先用 GAS 返回的完整年份列表 (4 类记账 + RMB 流水的 index 推导),
+      // 旧逻辑只看当前月份的 transactions, 所以翻月份前列表里只有当年。
       const years = new Set([today.getFullYear()]);
+      dataYears.value.forEach(y => years.add(Number(y)));
       transactions.value.forEach(t => { if (t.date) years.add(Number(t.date.split('-')[0])); });
-      return Array.from(years).sort((a, b) => b - a);
+      yearlyData.value.forEach(m => { if (m && m.month) years.add(Number(m.month.slice(0, 4))); });
+      return Array.from(years).filter(y => !isNaN(y)).sort((a, b) => b - a);
     });
 
     const topExpenseCategories = computed(() => {
@@ -1568,6 +1594,8 @@ createApp({
     // v1.5: RMB 流水 (filter + sort + 计算 in/out/balance)
     const rmbFilteredSorted = computed(() => {
       let list = rmbTransactions.value.slice();
+      // Filter by year (v1.8.9)
+      if (rmbFilter.year) list = list.filter(r => String(r.date || '').slice(0, 4) === String(rmbFilter.year));
       // Filter by date
       if (rmbFilter.from) list = list.filter(r => r.date >= rmbFilter.from);
       if (rmbFilter.to) list = list.filter(r => r.date <= rmbFilter.to);
@@ -2276,6 +2304,14 @@ async function loadAppState(nocache) {
       rmbTransactions.value = r.rmbTransactions || [];
       rmbOpeningBalance.value = Number(r.rmbOpeningBalance) || 0;
       rmbOpeningInput.value = rmbOpeningBalance.value;
+      if (Array.isArray(r.years) && r.years.length) dataYears.value = r.years.map(Number).filter(y => !isNaN(y));
+      else {
+        // GAS 有 getAppState 但还没更新到带 years 的版本 → 单独拉一次
+        try {
+          const y = await apiGet('getAvailableYears');
+          if (y && y.success && Array.isArray(y.years)) dataYears.value = y.years.map(Number).filter(v => !isNaN(v));
+        } catch (e) {}
+      }
 
       localStorage.setItem(STORAGE_KEYS.categories, JSON.stringify(categories.value));
       localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify(accounts.value));
@@ -2308,6 +2344,11 @@ async function loadAppState(nocache) {
           if (r.success) { yearlyData.value = r.months || []; if (activeTab.value === 'overview') renderCharts(); }
         });
       }
+      // v1.8.9: 老 GAS 单独拉年份列表 (失败不影响主流程)
+      try {
+        const y = await apiGet('getAvailableYears');
+        if (y && y.success && Array.isArray(y.years)) dataYears.value = y.years.map(Number).filter(v => !isNaN(v));
+      } catch (e) {}
     }
 
     onMounted(async () => {
@@ -2356,7 +2397,7 @@ async function loadAppState(nocache) {
       loadYearlyStats,
       // v1.5: RMB 流水
       rmbTransactions, rmbOpeningBalance, rmbOpeningInput, rmbFilter, rmbSort, rmbModal,
-      rmbModalValid, rmbFilteredSorted, rmbTotals,
+      rmbModalValid, rmbFilteredSorted, rmbTotals, rmbYears, setRmbYear,
       loadAllRmb, loadRmbOpening, saveRmbOpening,
       openRmbModal, closeRmbModal, saveRmbTx, deleteRmbFromModal, deleteRmbTx, sortRmb
     };

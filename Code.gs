@@ -489,10 +489,53 @@ function getAppState(month, year, nocache) {
       yearly: yearly.success ? yearly.months : [],
       rmbTransactions: rmbAll.success ? rmbAll.transactions : [],
       rmbOpeningBalance: rmbOpn.success ? rmbOpn.openingBalance : 0,
+      years: getAvailableYears_().years,
       source: 'storage'
     };
     cachePut_(cacheKey, result, CACHE_TTL_SEC);
     return result;
+  } catch (error) {
+    return { success: false, message: error.toString() };
+  }
+}
+
+// ==================== 可用年份 (v1.8.9: 年份检索) ====================
+// 从两个 index 数组推导, 不需要读任何交易数据 -> 成本极低。
+// me_tx_index     : ['2026-01', '2026-02', ...]  (4 类记账)
+// me_rmb_tx_index : ['2026-01', ...]             (RMB 流水)
+function getAvailableYears_() {
+  try {
+    const set = {};
+    function addFrom(idx) {
+      (idx || []).forEach(function(m) {
+        if (typeof m === 'string' && m.length >= 4) {
+          const y = Number(m.slice(0, 4));
+          if (!isNaN(y) && y > 1900 && y < 2200) set[y] = 1;
+        }
+      });
+    }
+    addFrom(readProp(PROP_TX_INDEX, []));
+    addFrom(readProp(PROP_RMB_TX_INDEX, []));
+
+    // 兜底: 若 index 为空但总流水有数据 (老数据迁移场景), 从总流水扫年份
+    if (Object.keys(set).length === 0) {
+      const rmbAll = readProp(PROP_RMB_TX_ALL, []);
+      (rmbAll || []).forEach(function(r) {
+        if (r && r.date) { const y = Number(String(r.date).slice(0, 4)); if (!isNaN(y)) set[y] = 1; }
+      });
+    }
+
+    const years = Object.keys(set).map(Number).sort(function(a, b) { return b - a; });
+    return { years: years };
+  } catch (e) {
+    return { years: [] };
+  }
+}
+
+function getAvailableYears() {
+  try {
+    const r = getAvailableYears_();
+    return { success: true, years: r.years };
   } catch (error) {
     return { success: false, message: error.toString() };
   }
@@ -872,6 +915,9 @@ function doGet(e) {
         break;
       case 'getAppState':
         result = getAppState(month, year || String(month).slice(0, 4), nocache);
+        break;
+      case 'getAvailableYears':
+        result = getAvailableYears();
         break;
       case 'getRmbOpening':
         result = getRmbOpeningBalance();
